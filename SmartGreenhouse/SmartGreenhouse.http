@@ -1,0 +1,6 @@
+@SmartGreenhouse_HostAddress = http://localhost:5195
+
+GET {{SmartGreenhouse_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
