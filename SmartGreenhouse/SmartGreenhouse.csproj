@@ -8,8 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="Iot.Device.Bindings" Version="4.2.0" />
+    <PackageReference Include="Iot.Device.Bindings.SkiaSharpAdapter" Version="4.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.2" />
     <PackageReference Include="System.Device.Gpio" Version="4.2.0" />
   </ItemGroup>
 

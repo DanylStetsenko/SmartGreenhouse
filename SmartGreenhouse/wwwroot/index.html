@@ -3,9 +3,67 @@
 <head>
     <meta charset="utf-8" />
     <title>Smart Greenhouse</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .sensor-panel {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            width: 300px;
+            background-color: #f9f9f9;
+        }
+
+        .val {
+            font-weight: bold;
+            color: #d35400;
+            font-size: 1.2em;
+        }
+    </style>
 </head>
 <body>
     <h1>Привіт, я рослина</h1>
     <p>Тут далі.</p>
+
+    <div class="sensor-panel">
+        <h3>Текущие показатели:</h3>
+        <p>Влажность почвы (A0): <span id="soilValue" class="val">Загрузка...</span></p>
+        <p>УФ индекс (A1): <span id="uvValue" class="val">Загрузка...</span></p>
+        <hr>
+        <p>Статус пульта: <span id="remoteValue" class="val" style="color: #2980b9;">Ожидание...</span></p>
+    </div>
+
+    <script>
+        // Функция, которая делает невидимый запрос к нашему новому API
+        async function fetchSensorData() {
+            try {
+                const response = await fetch('/api/hardware/sensors');
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Находим элементы на странице и меняем их текст
+                    document.getElementById('soilValue').innerText = data.soil;
+                    document.getElementById('uvValue').innerText = data.uv;
+                    document.getElementById('soilValue').innerText = data.soil;
+                    document.getElementById('uvValue').innerText = data.uv;
+                    document.getElementById('remoteValue').innerText = data.remote; // <-- Обновляем пульт
+                }
+            } catch (error) {
+                console.error('Ошибка связи с сервером:', error);
+                document.getElementById('soilValue').innerText = 'Ошибка';
+                document.getElementById('uvValue').innerText = 'Ошибка';
+            }
+        }
+
+        // Запускаем функцию сразу при открытии страницы
+        fetchSensorData();
+
+        // И настраиваем таймер: повторять функцию каждые 2000 миллисекунд (2 секунды)
+        setInterval(fetchSensorData, 2000);
+    </script>
 </body>
 </html>

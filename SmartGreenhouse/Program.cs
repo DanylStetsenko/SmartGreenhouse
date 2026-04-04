@@ -1,5 +1,5 @@
 using SmartGreenhouse.Services;
-
+Iot.Device.Graphics.SkiaSharpAdapter.SkiaSharpAdapter.Register();
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
