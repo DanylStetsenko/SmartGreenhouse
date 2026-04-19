@@ -42,43 +42,63 @@ namespace SmartGreenhouse.Services
             _i2cDeviceAdc = I2cDevice.Create(new I2cConnectionSettings(1, (int)I2cAddress.GND));
             _adc = new Ads1115(_i2cDeviceAdc);
 
-            // Настройка кнопок D0 (Пин 5) и D1 (Пин 6)
+            // 3. Открываем пины в самом простом, безопасном режиме (без подтяжек)
             _gpio.OpenPin(5, PinMode.Input);
             _gpio.OpenPin(6, PinMode.Input);
-
-            // Настройка пина VT (Пин 13) для отлова любой активности пульта
             _gpio.OpenPin(13, PinMode.Input);
 
-            _gpio.RegisterCallbackForPinValueChangedEvent(5, PinEventTypes.Rising, (sender, args) => {
-                _currentMode = DisplayMode.Soil;
-                _remoteStatus = $"Кнопка D0 нажата в {DateTime.Now:HH:mm:ss}";
-                UpdateSensorData();
-            });
+            // 4. Запускаем фоновый поток, который будет слушать кнопки 10 раз в секунду
+            Task.Run(ButtonListenerLoop);
 
-            _gpio.RegisterCallbackForPinValueChangedEvent(6, PinEventTypes.Rising, (sender, args) => {
-                _currentMode = DisplayMode.Uv;
-                _remoteStatus = $"Кнопка D1 нажата в {DateTime.Now:HH:mm:ss}";
-                UpdateSensorData();
-            });
-
-            // VT реагирует на любую кнопку пульта
-            _gpio.RegisterCallbackForPinValueChangedEvent(13, PinEventTypes.Rising, (sender, args) => {
-                _remoteStatus = $"Сигнал пульта пойман (VT) в {DateTime.Now:HH:mm:ss}";
-            });
-
-            // Вешаем "прослушку" на нажатие (когда напряжение растет - Rising)
-            _gpio.RegisterCallbackForPinValueChangedEvent(5, PinEventTypes.Rising, (sender, args) => {
-                _currentMode = DisplayMode.Soil;
-                UpdateSensorData(); // Мгновенное обновление при клике
-            });
-
-            _gpio.RegisterCallbackForPinValueChangedEvent(6, PinEventTypes.Rising, (sender, args) => {
-                _currentMode = DisplayMode.Uv;
-                UpdateSensorData(); // Мгновенное обновление при клике
-            });
-
-            // 4. Запуск таймера: ждать 0 секунд, повторять каждые 2000 мс
+            // 5. Запуск таймера: ждать 0 секунд, повторять каждые 2000 мс
             _timer = new Timer(OnTimerTick, null, 0, 2000);
+        }
+
+        // БЕЗОПАСНЫЙ ОПРОС КНОПОК
+        private async Task ButtonListenerLoop()
+        {
+            // Переменные для защиты от "залипания" кнопки
+            bool lastD0 = false;
+            bool lastD1 = false;
+            bool lastVt = false;
+
+            while (true)
+            {
+                // Читаем текущее состояние пинов (High означает, что есть напряжение 3.3V)
+                bool currentD0 = _gpio.Read(5) == PinValue.High;
+                bool currentD1 = _gpio.Read(6) == PinValue.High;
+                bool currentVt = _gpio.Read(13) == PinValue.High;
+
+                // Если D0 только что нажали
+                if (currentD0 && !lastD0)
+                {
+                    _currentMode = DisplayMode.Soil;
+                    _remoteStatus = $"Кнопка D0 нажата в {DateTime.Now:HH:mm:ss}";
+                    UpdateSensorData();
+                }
+
+                // Если D1 только что нажали
+                if (currentD1 && !lastD1)
+                {
+                    _currentMode = DisplayMode.Uv;
+                    _remoteStatus = $"Кнопка D1 нажата в {DateTime.Now:HH:mm:ss}";
+                    UpdateSensorData();
+                }
+
+                // Если поймали сигнал от пульта (VT)
+                if (currentVt && !lastVt)
+                {
+                    _remoteStatus = $"Сигнал пульта пойман (VT) в {DateTime.Now:HH:mm:ss}";
+                }
+
+                // Запоминаем состояния для следующего цикла
+                lastD0 = currentD0;
+                lastD1 = currentD1;
+                lastVt = currentVt;
+
+                // Ждем 100 миллисекунд (10 проверок в секунду)
+                await Task.Delay(100);
+            }
         }
 
         // Этот метод вызывается каждые 2 секунды
@@ -94,7 +114,7 @@ namespace SmartGreenhouse.Services
             {
                 _adc.InputMultiplexer = InputMultiplexer.AIN0;
                 short rawSoil = _adc.ReadRaw();
-                DrawTextOnOled($"Почва (A0):\n\n {rawSoil}"); // Выдаем "сырые" цифры для калибровки
+                DrawTextOnOled($"Почва (A0):\n\n {rawSoil}");
             }
             else if (_currentMode == DisplayMode.Uv)
             {
@@ -160,6 +180,7 @@ namespace SmartGreenhouse.Services
                 }
             }
         }
+
         // Метод для получения свежих данных для веб-сайта
         public object GetCurrentSensorValues()
         {
@@ -174,6 +195,7 @@ namespace SmartGreenhouse.Services
             // Возвращаем анонимный объект, который ASP.NET сам превратит в JSON
             return new { Soil = rawSoil, Uv = rawUv, remote = _remoteStatus };
         }
+
         public void ClearDisplay()
         {
             lock (_displayLock)
@@ -196,6 +218,7 @@ namespace SmartGreenhouse.Services
             if (_gpio.IsPinOpen(6)) _gpio.ClosePin(6);
             if (_gpio.IsPinOpen(13)) _gpio.ClosePin(13);
             _gpio.Dispose();
+
             ClearDisplay();
             _display.SendCommand(new SetDisplayOff());
             _display.Dispose();
