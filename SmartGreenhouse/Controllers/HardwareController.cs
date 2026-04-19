@@ -35,5 +35,14 @@ namespace SmartGreenhouse.Controllers
             _hardware.DisplayText(text);
             return Ok(new { Message = $"Текст '{text}' успешно отправлен на экран!" });
         }
+        [HttpPost("water")]
+        public async Task<IActionResult> TriggerWatering()
+        {
+            // Запускаем наш метод полива
+            await _hardware.WaterPlantsAsync();
+
+            // Возвращаем ответ в браузер
+            return Ok(new { Message = "Полив на 1 секунду успешно завершен!" });
+        }
     }
 }

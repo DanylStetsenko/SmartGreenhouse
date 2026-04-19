@@ -32,26 +32,49 @@ namespace SmartGreenhouse.Services
         {
             _gpio = new GpioController();
 
-            // 1. Инициализация OLED дисплея (Адрес 0x3C)
+            //// 1. Инициализация OLED дисплея (Адрес 0x3C)
             _i2cDeviceOled = I2cDevice.Create(new I2cConnectionSettings(1, 0x3C));
             _display = new Ssd1306(_i2cDeviceOled, 128, 64);
             _display.SendCommand(new SetDisplayOn());
             ClearDisplay();
 
-            // 2. Инициализация АЦП ADS1115 (Адрес 0x48)
+            //// 2. Инициализация АЦП ADS1115 (Адрес 0x48)
             _i2cDeviceAdc = I2cDevice.Create(new I2cConnectionSettings(1, (int)I2cAddress.GND));
             _adc = new Ads1115(_i2cDeviceAdc);
 
-            // 3. Открываем пины в самом простом, безопасном режиме (без подтяжек)
+            //// 3. Открываем пины в самом простом, безопасном режиме (без подтяжек)
             _gpio.OpenPin(5, PinMode.Input);
             _gpio.OpenPin(6, PinMode.Input);
             _gpio.OpenPin(13, PinMode.Input);
 
-            // 4. Запускаем фоновый поток, который будет слушать кнопки 10 раз в секунду
-            Task.Run(ButtonListenerLoop);
+            // НОВОЕ: Настраиваем порты для реле насосов (GPIO 23, 24, 25)
+            _gpio.OpenPin(17, PinMode.Output);
+            _gpio.OpenPin(27, PinMode.Output);
+            _gpio.OpenPin(22, PinMode.Output);
 
-            // 5. Запуск таймера: ждать 0 секунд, повторять каждые 2000 мс
+            // КРИТИЧЕСКИ ВАЖНО: Сразу подаем LOW (0 Вольт), чтобы насосы были ВЫКЛЮЧЕНЫ
+            _gpio.Write(17, PinValue.Low);
+            _gpio.Write(27, PinValue.Low);
+            _gpio.Write(22, PinValue.Low);
+
+            Task.Run(ButtonListenerLoop);
             _timer = new Timer(OnTimerTick, null, 0, 2000);
+
+        }
+        public async Task WaterPlantsAsync()
+        {
+            // Включаем насосы (подаем 3.3V, реле в режиме HIGH замыкаются)
+            _gpio.Write(17, PinValue.High);
+            _gpio.Write(27, PinValue.High);
+            _gpio.Write(22, PinValue.High);
+
+            // Ждем ровно 1000 миллисекунд (1 секунду)
+            await Task.Delay(1000);
+
+            // Выключаем насосы
+            _gpio.Write(17, PinValue.Low);
+            _gpio.Write(27, PinValue.Low);
+            _gpio.Write(22, PinValue.Low);
         }
 
         // БЕЗОПАСНЫЙ ОПРОС КНОПОК
@@ -184,16 +207,27 @@ namespace SmartGreenhouse.Services
         // Метод для получения свежих данных для веб-сайта
         public object GetCurrentSensorValues()
         {
-            // Читаем почву (канал A0)
             _adc.InputMultiplexer = InputMultiplexer.AIN0;
-            short rawSoil = _adc.ReadRaw();
+            short rawSoil1 = _adc.ReadRaw();
 
-            // Читаем УФ (канал A1)
             _adc.InputMultiplexer = InputMultiplexer.AIN1;
             short rawUv = _adc.ReadRaw();
 
-            // Возвращаем анонимный объект, который ASP.NET сам превратит в JSON
-            return new { Soil = rawSoil, Uv = rawUv, remote = _remoteStatus };
+            _adc.InputMultiplexer = InputMultiplexer.AIN2;
+            short rawSoil2 = _adc.ReadRaw();
+
+            _adc.InputMultiplexer = InputMultiplexer.AIN3;
+            short rawSoil3 = _adc.ReadRaw();
+
+            // C# автоматически сделает первую букву маленькой при отправке в браузер (soil1, soil2...)
+            return new
+            {
+                Soil1 = rawSoil1,
+                Soil2 = rawSoil2,
+                Soil3 = rawSoil3,
+                Uv = rawUv,
+                remote = _remoteStatus
+            };
         }
 
         public void ClearDisplay()
@@ -217,13 +251,19 @@ namespace SmartGreenhouse.Services
             if (_gpio.IsPinOpen(5)) _gpio.ClosePin(5);
             if (_gpio.IsPinOpen(6)) _gpio.ClosePin(6);
             if (_gpio.IsPinOpen(13)) _gpio.ClosePin(13);
+            if (_gpio.IsPinOpen(17)) { _gpio.Write(23, PinValue.Low); _gpio.ClosePin(17); }
+            if (_gpio.IsPinOpen(27)) { _gpio.Write(24, PinValue.Low); _gpio.ClosePin(27); }
+            if (_gpio.IsPinOpen(22)) { _gpio.Write(25, PinValue.Low); _gpio.ClosePin(22); }
             _gpio.Dispose();
+
+
 
             ClearDisplay();
             _display.SendCommand(new SetDisplayOff());
             _display.Dispose();
             _i2cDeviceOled.Dispose();
             _i2cDeviceAdc.Dispose();
+
         }
     }
 }

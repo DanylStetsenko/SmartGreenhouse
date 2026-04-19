@@ -30,39 +30,59 @@
     <p>Тут далі.</p>
 
     <div class="sensor-panel">
-        <h3>Текущие показатели:</h3>
-        <p>Влажность почвы (A0): <span id="soilValue" class="val">Загрузка...</span></p>
-        <p>УФ индекс (A1): <span id="uvValue" class="val">Загрузка...</span></p>
+        <h3>Поточні показники:</h3>
+        <p>Вологість ґрунту 1 (A0): <span id="soil1Value" class="val">Завантаження...</span></p>
+        <p>Вологість ґрунту 2 (A2): <span id="soil2Value" class="val">Завантаження...</span></p>
+        <p>Вологість ґрунту 3 (A3): <span id="soil3Value" class="val">Завантаження...</span></p>
+        <p>УФ індекс (A1): <span id="uvValue" class="val">Завантаження...</span></p>
         <hr>
-        <p>Статус пульта: <span id="remoteValue" class="val" style="color: #2980b9;">Ожидание...</span></p>
+        <p>Статус пульта: <span id="remoteValue" class="val" style="color: #2980b9;">Очікування...</span></p>
+        <hr>
+        <button id="waterBtn" onclick="startWatering()" style="padding: 10px 15px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">
+            💦 Полити всі горщики (1 сек)
+        </button>
     </div>
 
     <script>
-        // Функция, которая делает невидимый запрос к нашему новому API
         async function fetchSensorData() {
             try {
                 const response = await fetch('/api/hardware/sensors');
                 if (response.ok) {
                     const data = await response.json();
 
-                    // Находим элементы на странице и меняем их текст
-                    document.getElementById('soilValue').innerText = data.soil;
+                    // ОБНОВЛЕНО: Читаем 3 почвы
+                    document.getElementById('soil1Value').innerText = data.soil1;
+                    document.getElementById('soil2Value').innerText = data.soil2;
+                    document.getElementById('soil3Value').innerText = data.soil3;
                     document.getElementById('uvValue').innerText = data.uv;
-                    document.getElementById('soilValue').innerText = data.soil;
-                    document.getElementById('uvValue').innerText = data.uv;
-                    document.getElementById('remoteValue').innerText = data.remote; // <-- Обновляем пульт
+                    document.getElementById('remoteValue').innerText = data.remote;
                 }
             } catch (error) {
-                console.error('Ошибка связи с сервером:', error);
-                document.getElementById('soilValue').innerText = 'Ошибка';
-                document.getElementById('uvValue').innerText = 'Ошибка';
+                console.error('Ошибка связи:', error);
             }
         }
 
-        // Запускаем функцию сразу при открытии страницы
-        fetchSensorData();
+        // НОВАЯ ФУНКЦИЯ ДЛЯ КНОПКИ
+        async function startWatering() {
+            const btn = document.getElementById('waterBtn');
+            btn.disabled = true; // Блокируем кнопку от двойного нажатия
+            btn.innerText = "⏳ Поливаю...";
+            btn.style.backgroundColor = "#95a5a6";
 
-        // И настраиваем таймер: повторять функцию каждые 2000 миллисекунд (2 секунды)
+            try {
+                // Отправляем POST запрос на наш новый контроллер
+                await fetch('/api/hardware/water', { method: 'POST' });
+            } catch (error) {
+                alert('Помилка з\'єднання з теплицею!');
+            } finally {
+                // Возвращаем кнопку в нормальное состояние
+                btn.disabled = false;
+                btn.innerText = "💦 Полити всі горщики (1 сек)";
+                btn.style.backgroundColor = "#3498db";
+            }
+        }
+
+        fetchSensorData();
         setInterval(fetchSensorData, 2000);
     </script>
 </body>
