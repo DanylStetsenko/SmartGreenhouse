@@ -42,8 +42,47 @@
             💦 Полити всі горщики (1 сек)
         </button>
     </div>
+    <div class="pots-grid" id="potsContainer">
+        <div style="text-align: center; width: 100%;">⏳ Завантаження горщиків...</div>
+    </div>
 
     <script>
+        async function loadPotsFromDatabase() {
+            try {
+                const response = await fetch('/api/pots');
+                const pots = await response.json();
+
+                const container = document.getElementById('potsContainer');
+                container.innerHTML = ''; // Очищаем надпись "Загрузка"
+
+                // Проходимся циклом по каждому горшку из базы
+                pots.forEach(pot => {
+                    // Создаем HTML-код для одной карточки
+                    const cardHtml = `
+                <div class="pot-card">
+                    <input type="text" class="plant-name-input" value="${pot.plantName}" readonly>
+                    <div class="pot-stat">
+                        <span>Горщик #${pot.id} (Пін ${pot.relayPin}):</span>
+                        <span class="pot-val" id="soil${pot.id}Value">--</span>
+                    </div>
+                    <!-- Обрати внимание: кнопка сразу передает правильный ID горшка -->
+                    <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
+                        💦 Полити (Авто-доза)
+                    </button>
+                </div>
+            `;
+                    // Вставляем карточку на страницу
+                    container.insertAdjacentHTML('beforeend', cardHtml);
+                });
+
+            } catch (error) {
+                console.error("Помилка завантаження бази даних:", error);
+                document.getElementById('potsContainer').innerHTML = '❌ Помилка з\'єднання з базою';
+            }
+        }
+
+        // Запускаем эту функцию сразу при открытии страницы
+        window.onload = loadPotsFromDatabase;
         async function fetchSensorData() {
             try {
                 const response = await fetch('/api/hardware/sensors');

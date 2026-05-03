@@ -63,18 +63,30 @@ namespace SmartGreenhouse.Services
         }
         public async Task WaterPlantsAsync()
         {
-            // Включаем насосы (подаем 3.3V, реле в режиме HIGH замыкаются)
-            _gpio.Write(17, PinValue.High);
-            _gpio.Write(27, PinValue.High);
-            _gpio.Write(22, PinValue.High);
+            try
+            {
+                // Включаем насосы (подаем 3.3V, реле в режиме HIGH замыкаются)
+                _gpio.Write(17, PinValue.High);
+                _gpio.Write(27, PinValue.High);
+                _gpio.Write(22, PinValue.High);
 
-            // Ждем ровно 1000 миллисекунд (1 секунду)
-            await Task.Delay(1000);
-
-            // Выключаем насосы
-            _gpio.Write(17, PinValue.Low);
-            _gpio.Write(27, PinValue.Low);
-            _gpio.Write(22, PinValue.Low);
+                // Ждем ровно 1000 миллисекунд (1 секунду)
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                // Если ошибка произойдет прямо во время ожидания, мы ее увидим в консоли
+                Console.WriteLine($"[КРИТИЧЕСКАЯ ОШИБКА] Сбой во время полива: {ex.Message}");
+            }
+            finally
+            {
+                // Блок finally выполнится АБСОЛЮТНО ВСЕГДА. 
+                // Даже если программа крашится, таймер сходит с ума или пропадает сеть.
+                // Выключаем насосы, спасаем квартиру от потопа:
+                _gpio.Write(17, PinValue.Low);
+                _gpio.Write(27, PinValue.Low);
+                _gpio.Write(22, PinValue.Low);
+            }
         }
 
         // БЕЗОПАСНЫЙ ОПРОС КНОПОК
@@ -127,7 +139,22 @@ namespace SmartGreenhouse.Services
         // Этот метод вызывается каждые 2 секунды
         private void OnTimerTick(object? state)
         {
-            UpdateSensorData();
+            try
+            {
+                // Пытаемся обновить экран и прочитать датчики
+                UpdateSensorData();
+            }
+            catch (System.IO.IOException ex)
+            {
+                // Если I2C шину "пробило" помехой от реле, мы ловим ошибку здесь!
+                // Программа НЕ крашится, мы просто пишем в консоль и ждем следующего тика.
+                Console.WriteLine($"[I2C EMI ПОМЕХА] Экран завис, но мы продолжаем работу. Ошибка: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                // Ловим любые другие ошибки таймера
+                Console.WriteLine($"[ОШИБКА ТАЙМЕРА] {ex.Message}");
+            }
         }
 
         // Логика опроса датчиков

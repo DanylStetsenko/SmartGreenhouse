@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SmartGreenhouse.Data;
 using SmartGreenhouse.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartGreenhouse.Controllers
 {
@@ -43,6 +45,26 @@ namespace SmartGreenhouse.Controllers
 
             // Возвращаем ответ в браузер
             return Ok(new { Message = "Полив на 1 секунду успешно завершен!" });
+        }
+        [HttpGet("api/pots")]
+        public IActionResult GetActivePots()
+        {
+            using (var db = new GreenhouseContext())
+            {
+                // Достаем все горшки и заодно "приклеиваем" к ним данные о растении (Include)
+                var pots = db.ActivePots
+                             .Include(p => p.PlantProfile)
+                             .Select(p => new {
+                                 id = p.Id,
+                                 plantName = p.PlantProfile.Name,
+                                 relayPin = p.RelayPin,
+                                 // Сюда же можно вытягивать текущую влажность, если она сохранена, 
+                                 // или пока отдавать 0
+                             })
+                             .ToList();
+
+                return Ok(pots); // Возвращаем в виде красивого JSON
+            }
         }
     }
 }
