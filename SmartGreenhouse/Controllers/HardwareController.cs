@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SmartGreenhouse.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("/api/[controller]")]
     public class HardwareController : ControllerBase
     {
         // 1. Создаем приватную переменную, в которой будет храниться ссылка на сервис
@@ -51,13 +51,13 @@ namespace SmartGreenhouse.Controllers
         //    // Отправляем их браузеру со статусом 200 (Ok)
         //    return Ok(data);
         //}
-        [HttpPost("display")]
+        [HttpPost("/display")]
         public IActionResult UpdateDisplay([FromQuery] string text)
         {
             _hardware.DisplayText(text);
             return Ok(new { Message = $"Текст '{text}' успешно отправлен на экран!" });
         }
-        [HttpPost("water")]
+        [HttpPost("/water")]
         public async Task<IActionResult> TriggerWatering()
         {
             // Запускаем наш метод полива
