@@ -1,10 +1,12 @@
-﻿using System.Device.Gpio;
-using System.Device.I2c;
-using Iot.Device.Ads1115;
+﻿using Iot.Device.Ads1115;
 using Iot.Device.Ssd13xx;
 using Iot.Device.Ssd13xx.Commands;
 using Iot.Device.Ssd13xx.Commands.Ssd1306Commands;
 using SkiaSharp;
+using SmartGreenhouse.Data;
+using System.Device.Gpio;
+using System.Device.I2c;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartGreenhouse.Services
 {
@@ -12,12 +14,16 @@ namespace SmartGreenhouse.Services
     {
         private readonly GpioController _gpio;
 
+        // Теперь это публичные Свойства. 
+        // { get; private set; } означает: "Читать могут все, а вот изменять значение может только сам HardwareService"
+        public short RawSoil1 { get; private set; }
+        public short RawSoil2 { get; private set; }
+        public short RawSoil3 { get; private set; }
         // I2C устройства
         private readonly I2cDevice _i2cDeviceOled;
         private readonly Ssd1306 _display;
         private readonly I2cDevice _i2cDeviceAdc;
         private readonly Ads1115 _adc;
-
         // Таймер для фонового обновления
         private Timer _timer;
         private readonly object _displayLock = new object();
@@ -88,7 +94,34 @@ namespace SmartGreenhouse.Services
                 _gpio.Write(22, PinValue.Low);
             }
         }
+        public async Task WaterPotByIdAsync(int potId)
+        {
+            using var db = new GreenhouseContext();
 
+            // Ищем горшок в базе и подтягиваем профиль растения
+            var pot = db.ActivePots.Include(p => p.PlantProfile).FirstOrDefault(p => p.Id == potId);
+
+            // Если горшок не найден в базе — ничего не делаем
+            if (pot == null) return;
+
+            try
+            {
+                // Включаем насос для конкретного горшка (используем пин из базы!)
+                _gpio.Write(pot.RelayPin, PinValue.High);
+
+                // Ждем столько секунд, сколько прописано в дозе полива для этого растения
+                await Task.Delay(pot.PlantProfile.WaterDoseSeconds * 1000);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ОШИБКА ПОЛИВА] Горщик {potId}: {ex.Message}");
+            }
+            finally
+            {
+                // Железобетонно выключаем именно этот пин
+                _gpio.Write(pot.RelayPin, PinValue.Low);
+            }
+        }
         // БЕЗОПАСНЫЙ ОПРОС КНОПОК
         private async Task ButtonListenerLoop()
         {
@@ -235,23 +268,26 @@ namespace SmartGreenhouse.Services
         public object GetCurrentSensorValues()
         {
             _adc.InputMultiplexer = InputMultiplexer.AIN0;
-            short rawSoil1 = _adc.ReadRaw();
+            RawSoil1 = _adc.ReadRaw(); // <-- С большой буквы
+
+            _adc.InputMultiplexer = InputMultiplexer.AIN2;
+            RawSoil2 = _adc.ReadRaw(); // <-- С большой буквы
+
+            _adc.InputMultiplexer = InputMultiplexer.AIN3;
+            RawSoil3 = _adc.ReadRaw(); // <-- С большой буквы
+            
 
             _adc.InputMultiplexer = InputMultiplexer.AIN1;
             short rawUv = _adc.ReadRaw();
 
-            _adc.InputMultiplexer = InputMultiplexer.AIN2;
-            short rawSoil2 = _adc.ReadRaw();
 
-            _adc.InputMultiplexer = InputMultiplexer.AIN3;
-            short rawSoil3 = _adc.ReadRaw();
 
             // C# автоматически сделает первую букву маленькой при отправке в браузер (soil1, soil2...)
             return new
             {
-                Soil1 = rawSoil1,
-                Soil2 = rawSoil2,
-                Soil3 = rawSoil3,
+                Soil1 = RawSoil1,
+                Soil2 = RawSoil2,
+                Soil3 = RawSoil3,
                 Uv = rawUv,
                 remote = _remoteStatus
             };
