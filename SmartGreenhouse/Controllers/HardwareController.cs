@@ -46,7 +46,7 @@ namespace SmartGreenhouse.Controllers
             // Возвращаем ответ в браузер
             return Ok(new { Message = "Полив на 1 секунду успешно завершен!" });
         }
-        [HttpGet("api/pots")]
+        [HttpGet("/api/pots")]
         public IActionResult GetActivePots()
         {
             using (var db = new GreenhouseContext())

@@ -29,22 +29,7 @@
     <h1>Привіт, я рослина</h1>
     <p>Тут далі.</p>
 
-    <div class="sensor-panel">
-        <h3>Поточні показники:</h3>
-        <p>Вологість ґрунту 1 (A0): <span id="soil1Value" class="val">Завантаження...</span></p>
-        <p>Вологість ґрунту 2 (A2): <span id="soil2Value" class="val">Завантаження...</span></p>
-        <p>Вологість ґрунту 3 (A3): <span id="soil3Value" class="val">Завантаження...</span></p>
-        <p>УФ індекс (A1): <span id="uvValue" class="val">Завантаження...</span></p>
-        <hr>
-        <p>Статус пульта: <span id="remoteValue" class="val" style="color: #2980b9;">Очікування...</span></p>
-        <hr>
-        <button id="waterBtn" onclick="startWatering()" style="padding: 10px 15px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">
-            💦 Полити всі горщики (1 сек)
-        </button>
-    </div>
-    <div class="pots-grid" id="potsContainer">
-        <div style="text-align: center; width: 100%;">⏳ Завантаження горщиків...</div>
-    </div>
+    
 
     <script>
         async function loadPotsFromDatabase() {
