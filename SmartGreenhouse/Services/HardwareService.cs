@@ -251,9 +251,9 @@ namespace SmartGreenhouse.Services
             if (_gpio.IsPinOpen(5)) _gpio.ClosePin(5);
             if (_gpio.IsPinOpen(6)) _gpio.ClosePin(6);
             if (_gpio.IsPinOpen(13)) _gpio.ClosePin(13);
-            if (_gpio.IsPinOpen(17)) { _gpio.Write(23, PinValue.Low); _gpio.ClosePin(17); }
-            if (_gpio.IsPinOpen(27)) { _gpio.Write(24, PinValue.Low); _gpio.ClosePin(27); }
-            if (_gpio.IsPinOpen(22)) { _gpio.Write(25, PinValue.Low); _gpio.ClosePin(22); }
+            if (_gpio.IsPinOpen(17)) { _gpio.Write(17, PinValue.Low); _gpio.ClosePin(17); }
+            if (_gpio.IsPinOpen(27)) { _gpio.Write(27, PinValue.Low); _gpio.ClosePin(27); }
+            if (_gpio.IsPinOpen(22)) { _gpio.Write(22, PinValue.Low); _gpio.ClosePin(22); }
             _gpio.Dispose();
 
 
