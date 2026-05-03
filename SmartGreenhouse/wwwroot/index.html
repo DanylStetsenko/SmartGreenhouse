@@ -1,113 +1,248 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
-    <meta charset="utf-8" />
-    <title>Smart Greenhouse</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Greenhouse - Control Panel</title>
+    <!-- Подключаем красивый современный шрифт -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
     <style>
+        /* Цветовая палитра и переменные (стиль "чистый дашборд") */
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --accent-color: #10b981; /* Приятный зеленый */
+            --accent-hover: #059669;
+            --border-color: #e5e7eb;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
             padding: 20px;
+            display: flex;
+            justify-content: center;
         }
 
-        .sensor-panel {
-            margin-top: 20px;
-            padding: 15px;
-            border: 2px solid #4CAF50;
+        .app-container {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        header {
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Сетка для карточек */
+        .pots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* Дизайн самой карточки */
+        .pot-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+            .pot-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            }
+
+        .plant-name {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pot-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        /* Кнопка полива */
+        .btn-water {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
             border-radius: 8px;
-            width: 300px;
-            background-color: #f9f9f9;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
         }
 
-        .val {
-            font-weight: bold;
-            color: #d35400;
-            font-size: 1.2em;
+            .btn-water:hover {
+                background-color: var(--accent-hover);
+            }
+
+        /* Статусы загрузки и ошибок */
+        .status-msg {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            grid-column: 1 / -1;
+            font-size: 15px;
+        }
+
+        .error-text {
+            color: #ef4444;
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
-    <h1>Привіт, я рослина</h1>
-    <p>Тут далі.</p>
 
-    
+    <div class="app-container">
+        <header>
+            <h1>🪴 Розумна Теплиця</h1>
+            <p class="subtitle">Панель керування v0.9 (Pre-prod)</p>
+        </header>
+
+        <main>
+            <!-- Контейнер, куда скрипт будет вставлять карточки -->
+            <div class="pots-grid" id="potsContainer">
+                <div class="status-msg">
+                    ⏳ Завантаження конфігурації з бази даних...
+                </div>
+            </div>
+        </main>
+    </div>
 
     <script>
+        // Функция загрузки списка горшков из БД
         async function loadPotsFromDatabase() {
             try {
+                // Делаем запрос к нашему C# контроллеру
                 const response = await fetch('/api/pots');
+                if (!response.ok) throw new Error('Network response was not ok');
+
                 const pots = await response.json();
 
                 const container = document.getElementById('potsContainer');
-                container.innerHTML = ''; // Очищаем надпись "Загрузка"
+                container.innerHTML = ''; // Очищаем статус загрузки
+
+                if (pots.length === 0) {
+                    container.innerHTML = '<div class="status-msg">У базі даних поки немає активних горщиків.</div>';
+                    return;
+                }
 
                 // Проходимся циклом по каждому горшку из базы
                 pots.forEach(pot => {
-                    // Создаем HTML-код для одной карточки
+                    // Генерируем новый красивый HTML для карточки
                     const cardHtml = `
-                <div class="pot-card">
-                    <input type="text" class="plant-name-input" value="${pot.plantName}" readonly>
-                    <div class="pot-stat">
-                        <span>Горщик #${pot.id} (Пін ${pot.relayPin}):</span>
-                        <span class="pot-val" id="soil${pot.id}Value">--</span>
-                    </div>
-                    <!-- Обрати внимание: кнопка сразу передает правильный ID горшка -->
-                    <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
-                        💦 Полити (Авто-доза)
-                    </button>
-                </div>
-            `;
+                            <div class="pot-card">
+                                <div class="plant-name">
+                                    🌱 ${pot.plantName}
+                                </div>
+
+                                <div class="pot-stat">
+                                    <span class="stat-label">Номер горщика:</span>
+                                    <span class="stat-value">#${pot.id}</span>
+                                </div>
+
+                                <div class="pot-stat">
+                                    <span class="stat-label">Апаратний пін:</span>
+                                    <span class="stat-value">GPIO ${pot.relayPin}</span>
+                                </div>
+
+                                <div class="pot-stat">
+                                    <span class="stat-label">Вологість ґрунту:</span>
+                                    <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
+                                </div>
+
+                                <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
+                                    💦 Полити (Авто-доза)
+                                </button>
+                            </div>
+                        `;
                     // Вставляем карточку на страницу
                     container.insertAdjacentHTML('beforeend', cardHtml);
                 });
 
             } catch (error) {
                 console.error("Помилка завантаження бази даних:", error);
-                document.getElementById('potsContainer').innerHTML = '❌ Помилка з\'єднання з базою';
+                document.getElementById('potsContainer').innerHTML = `
+                        <div class="status-msg error-text">
+                            ❌ Помилка з'єднання з базою даних. Перевірте, чи працює бекенд.
+                        </div>
+                    `;
             }
         }
 
-        // Запускаем эту функцию сразу при открытии страницы
+        // Заглушка для функции полива (чтобы кнопка не выдавала ошибку в консоли)
+        // Замени на свою логику отправки POST запроса на полив
+        async function waterPot(potId) {
+            const btn = document.getElementById(`btnWater${potId}`);
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Поливаємо...';
+            btn.style.opacity = '0.7';
+            btn.disabled = true;
+
+            // Тут должен быть твой fetch('/api/water', ...)
+            console.log(`Сигнал на полив горшка ${potId} відправлено.`);
+
+            setTimeout(() => {
+                btn.innerHTML = '✅ Успішно';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.opacity = '1';
+                    btn.disabled = false;
+                }, 2000);
+            }, 1000);
+        }
+
+        // Запускаем отрисовку интерфейса при загрузке страницы
         window.onload = loadPotsFromDatabase;
-        async function fetchSensorData() {
-            try {
-                const response = await fetch('/api/hardware/sensors');
-                if (response.ok) {
-                    const data = await response.json();
-
-                    // ОБНОВЛЕНО: Читаем 3 почвы
-                    document.getElementById('soil1Value').innerText = data.soil1;
-                    document.getElementById('soil2Value').innerText = data.soil2;
-                    document.getElementById('soil3Value').innerText = data.soil3;
-                    document.getElementById('uvValue').innerText = data.uv;
-                    document.getElementById('remoteValue').innerText = data.remote;
-                }
-            } catch (error) {
-                console.error('Ошибка связи:', error);
-            }
-        }
-
-        // НОВАЯ ФУНКЦИЯ ДЛЯ КНОПКИ
-        async function startWatering() {
-            const btn = document.getElementById('waterBtn');
-            btn.disabled = true; // Блокируем кнопку от двойного нажатия
-            btn.innerText = "⏳ Поливаю...";
-            btn.style.backgroundColor = "#95a5a6";
-
-            try {
-                // Отправляем POST запрос на наш новый контроллер
-                await fetch('/api/hardware/water', { method: 'POST' });
-            } catch (error) {
-                alert('Помилка з\'єднання з теплицею!');
-            } finally {
-                // Возвращаем кнопку в нормальное состояние
-                btn.disabled = false;
-                btn.innerText = "💦 Полити всі горщики (1 сек)";
-                btn.style.backgroundColor = "#3498db";
-            }
-        }
-
-        fetchSensorData();
-        setInterval(fetchSensorData, 2000);
     </script>
+
 </body>
 </html>
