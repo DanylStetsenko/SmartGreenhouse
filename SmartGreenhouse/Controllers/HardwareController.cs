@@ -21,6 +21,12 @@ namespace SmartGreenhouse.Controllers
 
         // ... а дальше уже идут твои методы [HttpGet("/api/pots")] и остальные ...
 
+        [HttpPost("/api/water/test")]
+        public async Task<IActionResult> TestWater()
+        {
+            await _hardwareService.TestWaterPumpAsync();
+            return Ok();
+        }
         [HttpPost("/api/water/{id}")]
         public async Task<IActionResult> WaterPot(int id)
         {

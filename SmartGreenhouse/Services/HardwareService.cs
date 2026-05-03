@@ -67,6 +67,23 @@ namespace SmartGreenhouse.Services
             _timer = new Timer(OnTimerTick, null, 0, 2000);
 
         }
+        public async Task TestWaterPumpAsync()
+        {
+            int testPin = 17; // Хардкодим пин для теста
+            try
+            {
+                _gpio.Write(testPin, PinValue.High);
+                await Task.Delay(1000); // Крутим 1 секунду
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TEST ПОЛИВ ОШИБКА] {ex.Message}");
+            }
+            finally
+            {
+                _gpio.Write(testPin, PinValue.Low);
+            }
+        }
         public async Task WaterPlantsAsync()
         {
             try

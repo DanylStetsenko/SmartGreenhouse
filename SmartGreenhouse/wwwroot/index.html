@@ -148,6 +148,20 @@
         </header>
 
         <main>
+            <!-- ДЕБАГ ПАНЕЛЬ -->
+            <div style="background: #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 2px dashed #94a3b8;">
+                <h3 style="margin-top: 0; color: #334155;">🛠 Прямий доступ (Дебаг)</h3>
+
+                <p style="margin-bottom: 15px; color: #475569;">
+                    <strong>Сирі дані з сенсорів:</strong>
+                    <code id="rawSensorsText" style="background: #fff; padding: 4px 8px; border-radius: 4px;">Очікування...</code>
+                </p>
+
+                <button onclick="testWaterPump()" style="background: #3b82f6; color: white; padding: 10px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    💦 Примусовий запуск насоса (Пін 17)
+                </button>
+            </div>
+            <!-- КОНЕЦ ДЕБАГ ПАНЕЛИ -->
             <!-- Контейнер, куда скрипт будет вставлять карточки -->
             <div class="pots-grid" id="potsContainer">
                 <div class="status-msg">
@@ -199,7 +213,7 @@
                                     <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
                                 </div>
 
-                                <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
+                                <button class="btn-water" id="btnWater${pot.id}" onclick="WaterPot(${pot.id})">
                                     💦 Полити (Авто-доза)
                                 </button>
                             </div>
@@ -238,6 +252,19 @@
                     btn.disabled = false;
                 }, 2000);
             }, 1000);
+        }
+        async function testWaterPump() {
+            try {
+                // Стучимся на специальный тестовый адрес
+                const response = await fetch('/api/water/test', { method: 'POST' });
+                if (response.ok) {
+                    alert('✅ Сигнал надіслано! Насос має включитися на 1 секунду.');
+                } else {
+                    alert('❌ Сервер відхилив запит (Помилка ' + response.status + ')');
+                }
+            } catch (e) {
+                alert('❌ Немає зв\'язку з сервером: ' + e.message);
+            }
         }
 
         // Запускаем отрисовку интерфейса при загрузке страницы

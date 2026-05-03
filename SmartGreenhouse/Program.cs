@@ -9,14 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-//builder.Services.AddSingleton<HardwareService>();
-// 1. Создаем единственный и неповторимый экземпляр сервиса (Singleton)
-builder.Services.AddSingleton<SmartGreenhouse.Services.HardwareService>();
-
-// 2. Говорим системе запустить этот ЖЕ экземпляр как фоновую задачу (чтобы работал таймер)
-//builder.Services.AddHostedService(provider => provider.GetRequiredService<SmartGreenhouse.Services.HardwareService>());
+builder.Services.AddSingleton<HardwareService>();
 var app = builder.Build();
-app.Services.GetRequiredService<SmartGreenhouse.Services.HardwareService>();
 using (var scope = app.Services.CreateScope())
 {
     using (var db = new GreenhouseContext())
