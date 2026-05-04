@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SmartGreenhouse.Data;
-using SmartGreenhouse.Services;
 using Microsoft.EntityFrameworkCore;
+using SmartGreenhouse.Data;
+using SmartGreenhouse.Models;
+using SmartGreenhouse.Services;
 
 namespace SmartGreenhouse.Controllers
 {
@@ -76,5 +77,44 @@ namespace SmartGreenhouse.Controllers
                 return Ok(pots); // Возвращаем в виде красивого JSON
             }
         }
+        // 1. Отдаем список доступных растений для менюшки
+        [HttpGet("/api/plants")]
+        public IActionResult GetPlants()
+        {
+            using var db = new GreenhouseContext();
+            // Берем из базы только ID и Имя, нам больше для выпадающего списка не нужно
+            var plants = db.PlantProfiles.Select(p => new { p.Id, p.Name }).ToList();
+            return Ok(plants);
+        }
+
+        // 2. Принимаем запрос на создание нового горшка
+        [HttpPost("/api/pots")]
+        public IActionResult AddPot([FromBody] AddPotRequest request)
+        {
+            using var db = new GreenhouseContext();
+
+            // Ищем профиль растения, который выбрал пользователь
+            var plant = db.PlantProfiles.FirstOrDefault(p => p.Id == request.PlantProfileId);
+            if (plant == null) return BadRequest("Рослина не знайдена");
+
+            // Создаем новую запись для горшка
+            var newPot = new ActivePot
+            {
+                PlantProfileId = plant.Id,
+                PlantProfile = plant,
+                PlantName = plant.Name,
+                RelayPin = request.RelayPin
+            };
+
+            db.ActivePots.Add(newPot);
+            db.SaveChanges(); // Сохраняем в SQLite
+
+            return Ok(newPot);
+        }
+    }
+    public class AddPotRequest
+    {
+        public int PlantProfileId { get; set; }
+        public int RelayPin { get; set; }
     }
 }
