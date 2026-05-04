@@ -172,90 +172,74 @@
     </div>
 
     <script>
-        // Функция загрузки списка горшков из БД
+        // 1. Загрузка карточек из базы
         async function loadPotsFromDatabase() {
             try {
-                // Делаем запрос к нашему C# контроллеру
                 const response = await fetch('/api/pots');
                 if (!response.ok) throw new Error('Network response was not ok');
 
                 const pots = await response.json();
-
                 const container = document.getElementById('potsContainer');
-                container.innerHTML = ''; // Очищаем статус загрузки
+                container.innerHTML = '';
 
                 if (pots.length === 0) {
                     container.innerHTML = '<div class="status-msg">У базі даних поки немає активних горщиків.</div>';
                     return;
                 }
 
-                // Проходимся циклом по каждому горшку из базы
                 pots.forEach(pot => {
-                    // Генерируем новый красивый HTML для карточки
                     const cardHtml = `
-                            <div class="pot-card">
-                                <div class="plant-name">
-                                    🌱 ${pot.plantName}
-                                </div>
-
-                                <div class="pot-stat">
-                                    <span class="stat-label">Номер горщика:</span>
-                                    <span class="stat-value">#${pot.id}</span>
-                                </div>
-
-                                <div class="pot-stat">
-                                    <span class="stat-label">Апаратний пін:</span>
-                                    <span class="stat-value">GPIO ${pot.relayPin}</span>
-                                </div>
-
-                                <div class="pot-stat">
-                                    <span class="stat-label">Вологість ґрунту:</span>
-                                    <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
-                                </div>
-
-                                <button class="btn-water" id="btnWater${pot.id}" onclick="WaterPot(${pot.id})">
-                                    💦 Полити (Авто-доза)
-                                </button>
-                            </div>
-                        `;
-                    // Вставляем карточку на страницу
+                <div class="pot-card">
+                    <div class="plant-name">🌱 ${pot.plantName}</div>
+                    <div class="pot-stat">
+                        <span class="stat-label">Номер горщика:</span>
+                        <span class="stat-value">#${pot.id}</span>
+                    </div>
+                    <div class="pot-stat">
+                        <span class="stat-label">Апаратний пін:</span>
+                        <span class="stat-value">GPIO ${pot.relayPin}</span>
+                    </div>
+                    <div class="pot-stat">
+                        <span class="stat-label">Вологість ґрунту:</span>
+                        <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
+                    </div>
+                    <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
+                        💦 Полити (Авто-доза)
+                    </button>
+                </div>
+            `;
                     container.insertAdjacentHTML('beforeend', cardHtml);
                 });
-
             } catch (error) {
-                console.error("Помилка завантаження бази даних:", error);
                 document.getElementById('potsContainer').innerHTML = `
-                        <div class="status-msg error-text">
-                            ❌ Помилка з'єднання з базою даних. Перевірте, чи працює бекенд.
-                        </div>
-                    `;
+            <div class="status-msg error-text">❌ Помилка з'єднання з базою даних.</div>
+        `;
             }
         }
 
-        // Заглушка для функции полива (чтобы кнопка не выдавала ошибку в консоли)
-        // Замени на свою логику отправки POST запроса на полив
+        // 2. Полив через базу (по ID)
         async function waterPot(potId) {
             const btn = document.getElementById(`btnWater${potId}`);
             const originalText = btn.innerHTML;
             btn.innerHTML = '⏳ Поливаємо...';
-            btn.style.opacity = '0.7';
             btn.disabled = true;
 
-            // Тут должен быть твой fetch('/api/water', ...)
-            console.log(`Сигнал на полив горшка ${potId} відправлено.`);
+            try {
+                const response = await fetch(`/api/water/${potId}`, { method: 'POST' });
+                btn.innerHTML = response.ok ? '✅ Успішно' : '❌ Помилка на сервері';
+            } catch (error) {
+                btn.innerHTML = '❌ Збій мережі';
+            }
 
             setTimeout(() => {
-                btn.innerHTML = '✅ Успішно';
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.style.opacity = '1';
-                    btn.disabled = false;
-                }, 2000);
-            }, 1000);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
         }
+
+        // 3. ДЕБАГ: Принудительный полив в обход базы
         async function testWaterPump() {
             try {
-                // Стучимся на специальный тестовый адрес
                 const response = await fetch('/api/water/test', { method: 'POST' });
                 if (response.ok) {
                     alert('✅ Сигнал надіслано! Насос має включитися на 1 секунду.');
@@ -267,8 +251,35 @@
             }
         }
 
-        // Запускаем отрисовку интерфейса при загрузке страницы
+        // 4. ДЕБАГ + ОБНОВЛЕНИЕ: Опрос датчиков
+        async function fetchSensors() {
+            try {
+                const response = await fetch('/api/sensors');
+                if (!response.ok) return;
+
+                const data = await response.json();
+
+                // Выводим сырой JSON в нашу новую панель
+                const rawPanel = document.getElementById('rawSensorsText');
+                if (rawPanel) {
+                    rawPanel.innerText = JSON.stringify(data);
+                }
+
+                // Заодно обновляем красивые карточки, если они загрузились
+                for (const [id, value] of Object.entries(data)) {
+                    const el = document.getElementById(`soil${id}Value`);
+                    if (el) el.innerText = value;
+                }
+            } catch (error) {
+                console.error("Не вдалося оновити сенсори", error);
+            }
+        }
+
+        // Запускаем загрузку карточек при старте
         window.onload = loadPotsFromDatabase;
+
+        // Запускаем опрос датчиков каждые 2 секунды
+        setInterval(fetchSensors, 2000);
     </script>
 
 </body>
