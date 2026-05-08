@@ -144,16 +144,15 @@
     <div class="app-container">
         <header>
             <h1>🪴 Розумна Теплиця</h1>
-            <p class="subtitle">Панель керування v0.9 (Pre-prod)</p>
         </header>
 
         <main>
             <!-- ДЕБАГ ПАНЕЛЬ -->
             <div style="background: #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 2px dashed #94a3b8;">
-                <h3 style="margin-top: 0; color: #334155;">🛠 Прямий доступ (Дебаг)</h3>
+                <h3 style="margin-top: 0; color: #334155;">🛠</h3>
 
                 <p style="margin-bottom: 15px; color: #475569;">
-                    <strong>Сирі дані з сенсорів:</strong>
+                    <strong>дані з сенсорів:</strong>
                     <code id="rawSensorsText" style="background: #fff; padding: 4px 8px; border-radius: 4px;">Очікування...</code>
                 </p>
 
@@ -171,15 +170,14 @@
         </main>
     </div>
     <!-- Модальне вікно для додавання горщика -->
+    <!-- Модальне вікно для додавання горщика -->
     <div id="modalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 50;">
         <div style="background: white; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0; color: #1f2937;">➕ Новий горщик</h3>
 
             <p style="font-size: 14px; color: #6b7280; margin-bottom: 5px; font-weight: 500;">Оберіть рослину з бази:</p>
-            <select id="newPlantSelect" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #d1d5db; outline: none;"></select>
-
-            <p style="font-size: 14px; color: #6b7280; margin-bottom: 5px; font-weight: 500;">GPIO пін насоса (реле):</p>
-            <input type="number" id="newRelayPin" placeholder="Наприклад: 23" style="width: 100%; padding: 10px; margin-bottom: 25px; border-radius: 6px; border: 1px solid #d1d5db; box-sizing: border-box; outline: none;">
+            <!-- Збільшили margin-bottom, щоб було красиво -->
+            <select id="newPlantSelect" style="width: 100%; padding: 10px; margin-bottom: 25px; border-radius: 6px; border: 1px solid #d1d5db; outline: none;"></select>
 
             <div style="display: flex; gap: 10px;">
                 <button onclick="saveNewPot()" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer;">Додати</button>
@@ -198,45 +196,52 @@
                 const container = document.getElementById('potsContainer');
                 container.innerHTML = '';
 
+                // Если база пустая, выводим сообщение, но НЕ делаем return!
                 if (pots.length === 0) {
-                    container.innerHTML = '<div class="status-msg">У базі даних поки немає активних горщиків.</div>';
-                    return;
+                    container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 20px; color: #6b7280; font-size: 16px;">У базі даних поки немає активних горщиків. Додайте перший! 👇</div>';
+                } else {
+                    // Если горшки есть, рисуем их карточки
+                    pots.forEach(pot => {
+                        const cardHtml = `
+                        <div class="pot-card" style="position: relative;">
+                            <button onclick="deletePot(${pot.id})" title="Видалити горщик" style="position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #ef4444; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                                ✖
+                            </button>
+                            <div class="plant-name">🌱 ${pot.plantName}</div>
+                            <div class="pot-stat">
+                                <span class="stat-label">Номер горщика:</span>
+                                <span class="stat-value">#${pot.id}</span>
+                            </div>
+                            <div class="pot-stat">
+                                <span class="stat-label">Апаратний слот:</span>
+                                <span class="stat-value">GPIO ${pot.relayPin}</span>
+                            </div>
+                            <div class="pot-stat">
+                                <span class="stat-label">Вологість ґрунту:</span>
+                                <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
+                            </div>
+                            <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
+                                💦 Полити (Авто-доза)
+                            </button>
+                        </div>
+                    `;
+                        container.insertAdjacentHTML('beforeend', cardHtml);
+                    });
                 }
 
-                pots.forEach(pot => {
-                    const cardHtml = `
-                            <div class="pot-card">
-                                <div class="plant-name">🌱 ${pot.plantName}</div>
-                                <div class="pot-stat">
-                                    <span class="stat-label">Номер горщика:</span>
-                                    <span class="stat-value">#${pot.id}</span>
-                                </div>
-                                <div class="pot-stat">
-                                    <span class="stat-label">Апаратний пін:</span>
-                                    <span class="stat-value">GPIO ${pot.relayPin}</span>
-                                </div>
-                                <div class="pot-stat">
-                                    <span class="stat-label">Вологість ґрунту:</span>
-                                    <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
-                                </div>
-                                <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
-                                    💦 Полити (Авто-доза)
-                                </button>
-                            </div>
-                        `;
-                    container.insertAdjacentHTML('beforeend', cardHtml);
-                });
+                // Малюємо кнопку "Додати горщик" В БУДЬ-ЯКОМУ ВИПАДКУ в самому кінці
                 const addCardHtml = `
-            <div class="pot-card" onclick="openModal()" style="display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 220px; border: 2px dashed #10b981; background: #f0fdf4; box-shadow: none;">
-                <div style="font-size: 48px; color: #10b981; line-height: 1;">+</div>
-                <div style="color: #10b981; font-weight: 600; margin-top: 10px;">Додати горщик</div>
-            </div>
-`;
+                <div class="pot-card" onclick="openModal()" style="display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 220px; border: 2px dashed #10b981; background: #f0fdf4; box-shadow: none;">
+                    <div style="font-size: 48px; color: #10b981; line-height: 1;">+</div>
+                    <div style="color: #10b981; font-weight: 600; margin-top: 10px;">Додати горщик</div>
+                </div>
+            `;
                 container.insertAdjacentHTML('beforeend', addCardHtml);
+
             } catch (error) {
                 document.getElementById('potsContainer').innerHTML = `
-                        <div class="status-msg error-text">❌ Помилка з'єднання з базою даних.</div>
-                    `;
+                <div class="status-msg error-text" style="grid-column: 1 / -1; text-align: center;">❌ Помилка з'єднання з базою даних.</div>
+            `;
             }
         }
 
@@ -258,6 +263,25 @@
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }, 2000);
+        }
+        async function deletePot(potId) {
+            // Спрашиваем подтверждение, чтобы юзер не удалил горшок случайным кликом
+            if (!confirm('Ви впевнені, що хочете видалити цей горщик?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/pots/${potId}`, { method: 'DELETE' });
+
+                if (response.ok) {
+                    // Если сервер успешно удалил, просто перезагружаем список горшков
+                    loadPotsFromDatabase();
+                } else {
+                    alert('❌ Помилка при видаленні на сервері');
+                }
+            } catch (error) {
+                alert('❌ Збій мережі');
+            }
         }
 
         // 3. ДЕБАГ: Принудительный полив в обход базы
@@ -298,17 +322,20 @@
             }
         }
         async function openModal() {
+            // 1. Показуємо вікно
             document.getElementById('modalOverlay').style.display = 'flex';
-            document.getElementById('newRelayPin').value = ''; // Очищаем старый ввод
+
+            // СТРОЧКУ З ОЧИЩЕННЯМ ПІНА МИ ВИДАЛИЛИ ЗВІДСИ!
 
             try {
-                // Загружаем список растений из базы
+                // 2. Завантажуємо список рослин з бекенду
                 const response = await fetch('/api/plants');
                 const plants = await response.json();
 
                 const select = document.getElementById('newPlantSelect');
-                select.innerHTML = ''; // Очищаем старые опции
+                select.innerHTML = ''; // Очищаємо список
 
+                // 3. Заповнюємо випадаючий список
                 plants.forEach(p => {
                     select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
                 });
@@ -323,29 +350,21 @@
 
         async function saveNewPot() {
             const plantId = document.getElementById('newPlantSelect').value;
-            const pin = document.getElementById('newRelayPin').value;
-
-            if (!pin) {
-                alert("Будь ласка, вкажіть GPIO пін!");
-                return;
-            }
 
             try {
-                // Отправляем данные на наш новый эндпоинт
                 const response = await fetch('/api/pots', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        plantProfileId: parseInt(plantId),
-                        relayPin: parseInt(pin)
-                    })
+                    body: JSON.stringify({ plantProfileId: parseInt(plantId) }) // Отправляем только ID!
                 });
 
                 if (response.ok) {
                     closeModal();
-                    loadPotsFromDatabase(); // Перезагружаем интерфейс, чтобы увидеть новый горшок!
+                    loadPotsFromDatabase();
                 } else {
-                    alert("Помилка при збереженні на сервері");
+                    // Читаем текст ошибки с сервера (например, про отсутствие слотов)
+                    const errorText = await response.text();
+                    alert("Помилка: " + errorText);
                 }
             } catch (e) {
                 alert("Помилка мережі");

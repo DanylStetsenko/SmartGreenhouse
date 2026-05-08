@@ -111,6 +111,29 @@ namespace SmartGreenhouse.Services
                 _gpio.Write(22, PinValue.Low);
             }
         }
+        // Новая функция в HardwareService для надежного чтения АЦП
+        private short ReadFilteredAdc(InputMultiplexer channel)
+        {
+            // 1. Переключаем "рубильник" на нужный датчик
+            _adc.InputMultiplexer = channel;
+
+            // Даем АЦП пару миллисекунд, чтобы напряжение на входе стабилизировалось
+            Thread.Sleep(5);
+
+            const int SAMPLES_COUNT = 5;
+            short[] samples = new short[SAMPLES_COUNT]; // У ReadRaw тип short, поэтому массив тоже short
+
+            // 2. Делаем 5 быстрых замеров
+            for (int i = 0; i < SAMPLES_COUNT; i++)
+            {
+                samples[i] = _adc.ReadRaw(); // Читаем БЕЗ аргументов
+                Thread.Sleep(10);
+            }
+
+            // 3. Сортируем и берем медиану
+            Array.Sort(samples);
+            return samples[SAMPLES_COUNT / 2];
+        }
         public async Task WaterPotByIdAsync(int potId)
         {
             using var db = new GreenhouseContext();
@@ -127,7 +150,7 @@ namespace SmartGreenhouse.Services
                 _gpio.Write(pot.RelayPin, PinValue.High);
 
                 // Ждем столько секунд, сколько прописано в дозе полива для этого растения
-                await Task.Delay(pot.PlantProfile.WaterDoseSeconds * 1000);
+                await Task.Delay(1000);
             }
             catch (Exception ex)
             {
@@ -284,22 +307,14 @@ namespace SmartGreenhouse.Services
         // Метод для получения свежих данных для веб-сайта
         public object GetCurrentSensorValues()
         {
-            _adc.InputMultiplexer = InputMultiplexer.AIN0;
-            RawSoil1 = _adc.ReadRaw(); // <-- С большой буквы
+            // Скармливаем нашей умной функции нужные каналы
+            RawSoil1 = ReadFilteredAdc(InputMultiplexer.AIN0);
+            RawSoil2 = ReadFilteredAdc(InputMultiplexer.AIN2);
+            RawSoil3 = ReadFilteredAdc(InputMultiplexer.AIN3);
 
-            _adc.InputMultiplexer = InputMultiplexer.AIN2;
-            RawSoil2 = _adc.ReadRaw(); // <-- С большой буквы
+            // УФ-датчик тоже прогоним через фильтр, ему стабилизация не повредит
+            short rawUv = ReadFilteredAdc(InputMultiplexer.AIN1);
 
-            _adc.InputMultiplexer = InputMultiplexer.AIN3;
-            RawSoil3 = _adc.ReadRaw(); // <-- С большой буквы
-            
-
-            _adc.InputMultiplexer = InputMultiplexer.AIN1;
-            short rawUv = _adc.ReadRaw();
-
-
-
-            // C# автоматически сделает первую букву маленькой при отправке в браузер (soil1, soil2...)
             return new
             {
                 Soil1 = RawSoil1,

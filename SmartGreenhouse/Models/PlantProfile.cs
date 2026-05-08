@@ -15,8 +15,6 @@
 
         public TimeSpan WakeUpTime { get; set; }
         public TimeSpan SleepTime { get; set; }
-
-        public int WaterDoseSeconds { get; set; }
-        public int SoakTimeoutMinutes { get; set; }
+   
     }
 }

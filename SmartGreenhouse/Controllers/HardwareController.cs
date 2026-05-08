@@ -44,16 +44,20 @@ namespace SmartGreenhouse.Controllers
         [HttpGet("/api/sensors")]
         public IActionResult GetSensors()
         {
+            // Пнули сервис, чтобы он обновил цифры с железа
             _hardwareService.GetCurrentSensorValues();
-            // Здесь мы создаем словарь: Ключ = ID горшка в базе, Значение = текущая влажность.
-            // ВНИМАНИЕ: Замени MoistureA0 и т.д. на те реальные переменные/свойства из твоего 
-            // HardwareService, в которых сейчас хранятся цифры с АЦП!
-            var sensorData = new Dictionary<int, int>
+
+            using var db = new GreenhouseContext();
+            var pots = db.ActivePots.ToList();
+            var sensorData = new Dictionary<int, int>();
+
+            // Собираем показания датчиков, ориентируясь на то, какой насос (пин) привязан к горшку
+            foreach (var pot in pots)
             {
-                { 1, _hardwareService.RawSoil1 }, // Данные для горшка с ID 1
-                { 2, _hardwareService.RawSoil2 }, // Данные для горшка с ID 2
-                { 3, _hardwareService.RawSoil3 }  // Данные для горшка с ID 3
-            };
+                if (pot.RelayPin == 17) sensorData.Add(pot.Id, _hardwareService.RawSoil1);
+                else if (pot.RelayPin == 27) sensorData.Add(pot.Id, _hardwareService.RawSoil2);
+                else if (pot.RelayPin == 22) sensorData.Add(pot.Id, _hardwareService.RawSoil3);
+            }
 
             return Ok(sensorData);
         }
@@ -93,28 +97,56 @@ namespace SmartGreenhouse.Controllers
         {
             using var db = new GreenhouseContext();
 
-            // Ищем профиль растения, который выбрал пользователь
+            // 1. Наши физические "слоты" (пины насосов: 17, 27, 22)
+            int[] availablePins = new[] { 17, 27, 22 };
+
+            // 2. Смотрим, какие пины уже заняты горшками в базе
+            var usedPins = db.ActivePots.Select(p => p.RelayPin).ToList();
+
+            // 3. Ищем первый свободный пин
+            var freePin = availablePins.FirstOrDefault(pin => !usedPins.Contains(pin));
+
+            // Если свободный пин равен 0 (ничего не нашлось), значит мест нет!
+            if (freePin == 0) return BadRequest("Немає вільних апаратних слотів! Максимум 3 горщики.");
+
+            // Ищем профиль растения
             var plant = db.PlantProfiles.FirstOrDefault(p => p.Id == request.PlantProfileId);
             if (plant == null) return BadRequest("Рослина не знайдена");
 
-            // Создаем новую запись для горшка
+            // Создаем горшок с автоматически выбранным пином
             var newPot = new ActivePot
             {
                 PlantProfileId = plant.Id,
                 PlantProfile = plant,
                 PlantName = plant.Name,
-                RelayPin = request.RelayPin
+                RelayPin = freePin // <-- Магия здесь!
             };
 
             db.ActivePots.Add(newPot);
-            db.SaveChanges(); // Сохраняем в SQLite
+            db.SaveChanges();
 
             return Ok(newPot);
+        }
+        [HttpDelete("/api/pots/{id}")]
+        public IActionResult DeletePot(int id)
+        {
+            using var db = new GreenhouseContext();
+
+            // Ищем горшок в базе по его ID
+            var pot = db.ActivePots.Find(id);
+
+            // Если такого горшка нет, возвращаем ошибку
+            if (pot == null) return NotFound("Горщик не знайдено");
+
+            // Удаляем из базы и сохраняем изменения
+            db.ActivePots.Remove(pot);
+            db.SaveChanges();
+
+            return Ok();
         }
     }
     public class AddPotRequest
     {
         public int PlantProfileId { get; set; }
-        public int RelayPin { get; set; }
     }
 }
