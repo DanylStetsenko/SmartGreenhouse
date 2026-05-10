@@ -15,6 +15,12 @@ namespace SmartGreenhouse.Controllers
         {
             _hardwareService = hardwareService;
         }
+        [HttpPost("/api/system/toggle")]
+        public IActionResult ToggleSystem([FromBody] ToggleRequest request)
+        {
+            _hardwareService.SetSystemState(request.IsActive);
+            return Ok();
+        }
         [HttpPost("/api/water/test")]
         public async Task<IActionResult> TestWater()
         {
@@ -63,6 +69,7 @@ namespace SmartGreenhouse.Controllers
             // 4. Упаковываем всё в красивый JSON для сайта
             var responseData = new
             {
+                isSystemActive = _hardwareService.IsSystemActive,
                 airTemp = _hardwareService.AirTemp,
                 airHum = _hardwareService.AirHum,
                 uvLight = _hardwareService.UvLight,
@@ -100,7 +107,12 @@ namespace SmartGreenhouse.Controllers
             var plants = db.PlantProfiles.Select(p => new { p.Id, p.Name }).ToList();
             return Ok(plants);
         }
-
+        [HttpPost("/api/debug/pump")]
+        public IActionResult DebugPump([FromBody] DebugPumpRequest request)
+        {
+            _hardwareService.SetPumpManualStatus(request.Pin, request.IsOn);
+            return Ok();
+        }
         // 2. Принимаем запрос на создание нового горшка
         [HttpPost("/api/pots")]
         public IActionResult AddPot([FromBody] AddPotRequest request)
@@ -155,8 +167,17 @@ namespace SmartGreenhouse.Controllers
             return Ok();
         }
     }
+    public class DebugPumpRequest
+    {
+        public int Pin { get; set; }
+        public bool IsOn { get; set; }
+    }
     public class AddPotRequest
     {
         public int PlantProfileId { get; set; }
+    }
+    public class ToggleRequest
+    {
+        public bool IsActive { get; set; }
     }
 }

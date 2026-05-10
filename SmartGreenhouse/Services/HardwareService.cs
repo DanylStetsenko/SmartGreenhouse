@@ -1,14 +1,15 @@
 ﻿using Iot.Device.Ads1115;
+using Iot.Device.Bmxx80;
+using Iot.Device.Bmxx80.PowerMode;
 using Iot.Device.Ssd13xx;
 using Iot.Device.Ssd13xx.Commands;
 using Iot.Device.Ssd13xx.Commands.Ssd1306Commands;
+using Microsoft.EntityFrameworkCore;
 using SkiaSharp;
 using SmartGreenhouse.Data;
+using SmartGreenhouse.Models;
 using System.Device.Gpio;
 using System.Device.I2c;
-using Microsoft.EntityFrameworkCore;
-using Iot.Device.Bmxx80;
-using Iot.Device.Bmxx80.PowerMode;
 
 namespace SmartGreenhouse.Services
 {
@@ -23,6 +24,8 @@ namespace SmartGreenhouse.Services
         // Публичные свойства для контроллера
         public double AirTemp { get; private set; }
         public double AirHum { get; private set; }
+        // Главный рубильник системы
+        public bool IsSystemActive { get; private set; } = true;
 
         // I2C для BME280
         private readonly I2cDevice _i2cDeviceBme;
@@ -33,13 +36,213 @@ namespace SmartGreenhouse.Services
         private readonly Ads1115 _adc;
         private Timer _timer;
         private readonly object _displayLock = new object();
+        // --- НАСТРОЙКИ АВТОМАТИКИ ---
+        private const int WATERING_COOLDOWN_MINUTES = 5;
+        private const int PUMP_BURST_MS = 3000;
+        private async Task AutomationLoopAsync()
+        {
+            while (true)
+            {
+                await Task.Delay(5000); // Опитуємо систему кожні 5 секунд
+
+                if (!IsSystemActive) continue; // Якщо рубильник вимкнений - нічого не робимо
+
+                try
+                {
+                    using var db = new GreenhouseContext();
+                    var pots = db.ActivePots.Include(p => p.PlantProfile).ToList();
+                    var currentTime = DateTime.Now.TimeOfDay;
+
+                    foreach (var pot in pots)
+                    {
+                        // Перевіряємо, чи є вже пам'ять для цього горщика. Якщо ні - створюємо.
+                        if (!_wateringStates.ContainsKey(pot.Id))
+                        {
+                            _wateringStates[pot.Id] = new PotWateringState();
+                        }
+                        var state = _wateringStates[pot.Id];
+
+                        // 1. БІОЛОГІЧНИЙ ГОДИННИК (Сон)
+                        bool isNight = false;
+                        var sleep = pot.PlantProfile.SleepTime;
+                        var wake = pot.PlantProfile.WakeUpTime;
+
+                        if (sleep > wake) // Наприклад: спить з 22:00 до 08:00
+                            isNight = currentTime >= sleep || currentTime < wake;
+                        else
+                            isNight = currentTime >= sleep && currentTime < wake;
+
+                        if (isNight)
+                        {
+                            // Якщо настала ніч, жорстко скидаємо цикл поливу
+                            state.IsWateringCycle = false;
+                            continue;
+                        }
+
+                        // 2. ЧИТАЄМО ДАТЧИК З УРАХУВАННЯМ КАЛІБРОВКИ
+                        short rawVal = 0;
+                        int dry = 15000; // значення за замовчуванням
+                        int wet = 0;
+
+                        if (pot.RelayPin == 17)
+                        {
+                            rawVal = RawSoil1;
+                            dry = _calibrations[17].Dry;
+                            wet = _calibrations[17].Wet;
+                        }
+                        else if (pot.RelayPin == 27)
+                        {
+                            rawVal = RawSoil2;
+                            dry = _calibrations[27].Dry;
+                            wet = _calibrations[27].Wet;
+                        }
+                        else if (pot.RelayPin == 22)
+                        {
+                            rawVal = RawSoil3;
+                            dry = _calibrations[22].Dry;
+                            wet = _calibrations[22].Wet;
+                        }
+
+                        // Перетворюємо у відсотки за індивідуальною формулою датчика
+                        int moisturePercent = MapToPercent(rawVal, dry, wet);
+
+                        // 3. ЛОГІКА ГІСТЕРЕЗИСУ (Автомат станів)
+                        if (!state.IsWateringCycle)
+                        {
+                            // СТАН 1: Звичайний моніторинг
+                            if (moisturePercent < pot.PlantProfile.MinSoilMoisture)
+                            {
+                                Console.WriteLine($"[АВТОМАТИКА] Горщик #{pot.Id} (Слот {pot.RelayPin}) висох ({moisturePercent}%). Починаю цикл поливу!");
+                                state.IsWateringCycle = true;
+
+                                await PulsePump(pot.RelayPin);
+                                state.LastPulseTime = DateTime.Now;
+                            }
+                        }
+                        else
+                        {
+                            // СТАН 2: Режим насичення вологою
+                            if ((DateTime.Now - state.LastPulseTime).TotalMinutes >= WATERING_COOLDOWN_MINUTES)
+                            {
+                                if (moisturePercent >= pot.PlantProfile.MaxSoilMoisture)
+                                {
+                                    Console.WriteLine($"[АВТОМАТИКА] Горщик #{pot.Id} напився ({moisturePercent}%). Завершую цикл.");
+                                    state.IsWateringCycle = false;
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[АВТОМАТИКА] Горщик #{pot.Id} ще хоче пити ({moisturePercent}%). Даю ще дозу.");
+                                    await PulsePump(pot.RelayPin);
+                                    state.LastPulseTime = DateTime.Now;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ПОМИЛКА АВТОМАТИКИ] {ex.Message}");
+                }
+            }
+        }
+        // Структура для калибровки одного датчика
+        private class SensorCalibration
+        {
+            public int Dry { get; set; }
+            public int Wet { get; set; }
+        }
+
+        // Словник калібровок з прив'язкою до пінів реле (апаратних слотів)
+        // Поки ти калібруєш, я залишив тут твій еталон для першого порту і заглушки для інших.
+        // Як тільки отримаєш цифри — просто впиши їх сюди:
+        private readonly Dictionary<int, SensorCalibration> _calibrations = new()
+{
+    { 17, new SensorCalibration { Dry = 21225, Wet = 7648 } }, // Слот 1 (Насос 17, АЦП AIN0)
+    { 27, new SensorCalibration { Dry = 21551, Wet = 7528 } }, // Слот 2 (Насос 27, АЦП AIN2) - ЗАГЛУШКА
+    { 22, new SensorCalibration { Dry = 21429, Wet = 7542 } }  // Слот 3 (Насос 22, АЦП AIN3) - ЗАГЛУШКА
+};
+
+        // Тепер функція приймає індивідуальні значення сухості/вологості
+        private int MapToPercent(short rawValue, int dry, int wet)
+        {
+            if (dry == wet) return 0; // Захист від ділення на нуль (на випадок помилки в конфігу)
+
+            int percent = 100 - (int)Math.Round((double)(rawValue - wet) / (dry - wet) * 100.0);
+
+            if (percent < 0) return 0;
+            if (percent > 100) return 100;
+
+            return percent;
+        }
+
+        private async Task PulsePump(int pin)
+        {
+            try
+            {
+                _gpio.Write(pin, PinValue.High);
+                await Task.Delay(PUMP_BURST_MS);
+            }
+            finally
+            {
+                _gpio.Write(pin, PinValue.Low);
+            }
+        }
 
         // Состояния нашего интерфейса
         private enum DisplayMode { WebText, Soil, Uv }
         private DisplayMode _currentMode = DisplayMode.WebText;
         private string _webText = "Ожидание..."; // Текст с сайта по умолчанию
         private string _remoteStatus = "Ждем сигнал пульта...";
+        private class PotWateringState
+        {
+            public bool IsWateringCycle { get; set; } = false;
+            public DateTime LastPulseTime { get; set; } = DateTime.MinValue;
+        }
+        private readonly Dictionary<int, PotWateringState> _wateringStates = new();
 
+        // Метод для прямого керування пінами з дебаг-панелі
+        public void SetPumpManualStatus(int pin, bool turnOn)
+        {
+            // Список дозволених пінів для безпеки (наші насоси)
+            int[] allowedPins = { 17, 27, 22 };
+            if (!allowedPins.Contains(pin)) return;
+
+            // Просто міняємо стан: High - включено, Low - виключено
+            _gpio.Write(pin, turnOn ? PinValue.High : PinValue.Low);
+
+            Console.WriteLine($"[DEBUG] Порт GPIO {pin} переведено в стан: {(turnOn ? "HIGH" : "LOW")}");
+        }
+        public void SetSystemState(bool isActive)
+        {
+            IsSystemActive = isActive;
+
+            using (var db = new GreenhouseContext())
+            {
+                var setting = db.SystemSettings.FirstOrDefault(s => s.Key == "MainSwitch");
+                if (setting == null)
+                {
+                    db.SystemSettings.Add(new SystemSetting { Key = "MainSwitch", Value = isActive });
+                }
+                else
+                {
+                    setting.Value = isActive;
+                }
+                db.SaveChanges();
+            }
+
+            // Если систему поставили на паузу — ЖЕЛЕЗОБЕТОННО ВЫКЛЮЧАЕМ ВСЕ РЕЛЕ
+            if (!IsSystemActive)
+            {
+                _gpio.Write(17, PinValue.Low);
+                _gpio.Write(27, PinValue.Low);
+                _gpio.Write(22, PinValue.Low);
+                Console.WriteLine("🛑 Система поставлена на паузу. Все насосы принудительно отключены.");
+            }
+            else
+            {
+                Console.WriteLine("✅ Система автоматики снова активна.");
+            }
+        }
         public HardwareService()
         {
             _gpio = new GpioController();
@@ -74,6 +277,14 @@ namespace SmartGreenhouse.Services
 
             Task.Run(ButtonListenerLoop);
             _timer = new Timer(OnTimerTick, null, 0, 2000);
+
+            using (var db = new GreenhouseContext())
+            {
+                var setting = db.SystemSettings.FirstOrDefault(s => s.Key == "MainSwitch");
+                // Если в базе еще нет такой записи, считаем, что по умолчанию включено
+                IsSystemActive = setting?.Value ?? true;
+            }
+            Task.Run(AutomationLoopAsync);
 
         }
         public async Task TestWaterPumpAsync()

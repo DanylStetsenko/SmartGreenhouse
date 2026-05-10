@@ -1,0 +1,236 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Panel - Smart Greenhouse</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --accent-color: #10b981;
+            --border-color: #e5e7eb;
+            --danger-color: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        header {
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            text-decoration: none;
+            font-size: 24px;
+            color: var(--text-main);
+            transition: transform 0.2s;
+        }
+
+            .back-link:hover {
+                transform: translateX(-3px);
+            }
+
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .debug-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .device-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+        select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .toggle-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 15px;
+        }
+
+        .btn-on {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-off {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .status-dot {
+            width: 100px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <a href="index.html" class="back-link">←</a>
+            <h1>Панель ручного тестування</h1>
+        </header>
+
+        <div class="debug-card">
+            <div class="card-title">💡 Освітлення (УФ-Лампа)</div>
+            <div class="control-group">
+                <div class="device-row">
+                    <span>Статус: <strong id="lightStatus" style="color: var(--danger-color);">ВИМКНЕНО</strong></span>
+                </div>
+                <button onclick="toggleLight()" id="lightBtn" class="toggle-btn btn-on">Увімкнути лампу</button>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="card-title">💦 Керування насосами</div>
+            <div class="control-group">
+                <p style="font-size: 14px; color: var(--text-muted); margin-top: 0;">Оберіть GPIO порт реле:</p>
+                <select id="pumpSelect">
+                    <option value="17">Насос 1 (GPIO 17)</option>
+                    <option value="27">Насос 2 (GPIO 27)</option>
+                    <option value="22">Насос 3 (GPIO 22)</option>
+                </select>
+                <div class="device-row">
+                    <span>Статус порту: <strong id="pumpStatus" style="color: var(--danger-color);">LOW (0V)</strong></span>
+                </div>
+                <button onclick="togglePump()" id="pumpBtn" class="toggle-btn btn-on">Подати напругу (HIGH)</button>
+            </div>
+        </div>
+
+        <p style="text-align: center; color: var(--text-muted); font-size: 12px;">
+            ⚠️ Увага: ручне керування ігнорує датчики та таймери автоматики.
+        </p>
+    </div>
+
+    <script>
+        // Тимчасові змінні станів для візуалізації (поки немає бекенду)
+        let isLightOn = false;
+        let isPumpOn = false;
+
+        function toggleLight() {
+            isLightOn = !isLightOn;
+            const btn = document.getElementById('lightBtn');
+            const status = document.getElementById('lightStatus');
+
+            if(isLightOn) {
+                btn.innerText = "Вимкнути лампу";
+                btn.className = "toggle-btn btn-off";
+                status.innerText = "УВІМКНЕНО";
+                status.style.color = "var(--accent-color)";
+            } else {
+                btn.innerText = "Увімкнути лампу";
+                btn.className = "toggle-btn btn-on";
+                status.innerText = "ВИМКНЕНО";
+                status.style.color = "var(--danger-color)";
+            }
+        }
+
+        async function togglePump() {
+            const select = document.getElementById('pumpSelect');
+            const pin = parseInt(select.value);
+            const newState = !isPumpOn;
+
+            try {
+                // Відправляємо запит на наш новий дебаг-ендпоінт
+                const response = await fetch('/api/debug/pump', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin, isOn: newState })
+                });
+
+                if (response.ok) {
+                    isPumpOn = newState;
+                    const btn = document.getElementById('pumpBtn');
+                    const status = document.getElementById('pumpStatus');
+
+                    if (isPumpOn) {
+                        btn.innerText = `Вимкнути порт ${pin}`;
+                        btn.className = "toggle-btn btn-off";
+                        status.innerText = "HIGH (3.3V)";
+                        status.style.color = "var(--accent-color)";
+                        select.disabled = true; // Блокуємо зміну порта, поки він активний
+                    } else {
+                        btn.innerText = "Подати напругу (HIGH)";
+                        btn.className = "toggle-btn btn-on";
+                        status.innerText = "LOW (0V)";
+                        status.style.color = "var(--danger-color)";
+                        select.disabled = false;
+                    }
+                } else {
+                    alert("Помилка сервера при керуванні портом");
+                }
+            } catch (error) {
+                alert("Збій мережі: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

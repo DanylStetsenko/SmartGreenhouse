@@ -8,6 +8,7 @@ namespace SmartGreenhouse.Data
         // Указываем, какие таблицы нужно создать
         public DbSet<PlantProfile> PlantProfiles { get; set; }
         public DbSet<ActivePot> ActivePots { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

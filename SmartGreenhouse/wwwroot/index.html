@@ -142,10 +142,31 @@
 <body>
 
     <div class="app-container">
-        <header>
-            <h1>🪴 Розумна Теплиця</h1>
-        </header>
+        <header style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h1>🪴 Розумна Теплиця</h1>
+                <div id="clockDisplay" style="margin-top: 5px; color: var(--text-muted); font-size: 14px; font-weight: 500; letter-spacing: 0.3px;">
+                    Оновлення часу...
+                </div>
+            </div>
 
+            <a href="debug.html" style="text-decoration: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px; transition: 0.2s; background: white;">
+                🛠 ТЕСТУВАННЯ
+            </a>
+        </header>
+        <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 24px;">⚙️</div>
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Статус автоматики</div>
+                    <div id="systemStatusBadge" style="font-size: 18px; font-weight: 700; color: #10b981;">✅ АКТИВНА</div>
+                </div>
+            </div>
+
+            <button id="btnToggleSystem" onclick="toggleSystem()" style="background: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;">
+                🛑 Вимкнути систему
+            </button>
+        </div>
         <main>
             <!-- Контейнер, куда скрипт будет вставлять карточки -->
             <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
@@ -212,7 +233,10 @@
                     container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 20px; color: #6b7280; font-size: 16px;">У базі даних поки немає активних горщиків. Додайте перший! 👇</div>';
                 } else {
                     // Если горшки есть, рисуем их карточки
-                    pots.forEach(pot => {
+                    // Если горшки есть, рисуем их карточки
+                    pots.forEach((pot, index) => {
+                        const visualNumber = index + 1; // Рахуємо по порядку (1, 2, 3...)
+
                         const cardHtml = `
                         <div class="pot-card" style="position: relative;">
                             <button onclick="deletePot(${pot.id})" title="Видалити горщик" style="position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #ef4444; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
@@ -221,7 +245,7 @@
                             <div class="plant-name">🌱 ${pot.plantName}</div>
                             <div class="pot-stat">
                                 <span class="stat-label">Номер горщика:</span>
-                                <span class="stat-value">#${pot.id}</span>
+                                <span class="stat-value">#${visualNumber}</span>
                             </div>
                             <div class="pot-stat">
                                 <span class="stat-label">Апаратний слот:</span>
@@ -255,7 +279,33 @@
             `;
             }
         }
+        function updateClock() {
+            const now = new Date();
 
+            // Налаштовуємо формат: День тижня, Число Місяць, Години:Хвилини:Секунди
+            const options = {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+
+            let formatted = now.toLocaleString('uk-UA', options);
+
+            // Робимо першу літеру дня тижня великою
+            formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+
+            const clockEl = document.getElementById('clockDisplay');
+            if (clockEl) {
+                clockEl.innerText = formatted;
+            }
+        }
+
+        // Запускаємо лічильник
+        setInterval(updateClock, 1000);
+        updateClock(); // Викликаємо одразу, щоб не чекати першу секунду
         // 2. Полив через базу (по ID)
         async function waterPot(potId) {
             const btn = document.getElementById(`btnWater${potId}`);
@@ -317,6 +367,24 @@
                 if (!response.ok) return;
 
                 const data = await response.json();
+                // Оновлення Головного Рубильника
+                if (data.isSystemActive !== undefined) {
+                    isSystemActive = data.isSystemActive;
+                    const btn = document.getElementById('btnToggleSystem');
+                    const badge = document.getElementById('systemStatusBadge');
+
+                    if (isSystemActive) {
+                        btn.innerHTML = '🛑 Вимкнути систему';
+                        btn.style.background = '#ef4444';
+                        badge.innerHTML = '✅ АКТИВНА';
+                        badge.style.color = '#10b981'; // Зелений
+                    } else {
+                        btn.innerHTML = '▶️ Увімкнути систему';
+                        btn.style.background = '#10b981';
+                        badge.innerHTML = '⏸ НА ПАУЗІ';
+                        badge.style.color = '#ef4444'; // Червоний
+                    }
+                }
 
                 // Выводим сырой JSON в дебаг-панель (чтобы видеть, что реально шлет сервер)
                 const rawPanel = document.getElementById('rawSensorsText');
@@ -344,6 +412,27 @@
                 }
             } catch (error) {
                 console.error("Не вдалося оновити сенсори", error);
+            }
+        }
+        let isSystemActive = true; // Зберігаємо поточний стан на клієнті
+
+        async function toggleSystem() {
+            const newState = !isSystemActive; // Перемикаємо на протилежний
+
+            // Якщо вимикаємо, запитуємо підтвердження для безпеки
+            if (!newState && !confirm("Ви впевнені, що хочете вимкнути всю автоматику? Рослини не будуть поливатися!")) {
+                return;
+            }
+
+            try {
+                await fetch('/api/system/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isActive: newState })
+                });
+                // Ми не змінюємо UI тут вручну, бо fetchSensors оновиться сам через секунду
+            } catch (e) {
+                alert("Помилка з'єднання");
             }
         }
         async function openModal() {
