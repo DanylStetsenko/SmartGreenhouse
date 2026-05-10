@@ -7,6 +7,8 @@ using SmartGreenhouse.Data;
 using System.Device.Gpio;
 using System.Device.I2c;
 using Microsoft.EntityFrameworkCore;
+using Iot.Device.Bmxx80;
+using Iot.Device.Bmxx80.PowerMode;
 
 namespace SmartGreenhouse.Services
 {
@@ -14,17 +16,21 @@ namespace SmartGreenhouse.Services
     {
         private readonly GpioController _gpio;
 
-        // Теперь это публичные Свойства. 
-        // { get; private set; } означает: "Читать могут все, а вот изменять значение может только сам HardwareService"
         public short RawSoil1 { get; private set; }
         public short RawSoil2 { get; private set; }
         public short RawSoil3 { get; private set; }
-        // I2C устройства
+        public short UvLight { get; private set; }
+        // Публичные свойства для контроллера
+        public double AirTemp { get; private set; }
+        public double AirHum { get; private set; }
+
+        // I2C для BME280
+        private readonly I2cDevice _i2cDeviceBme;
+        private readonly Bme280 _bme280;
         private readonly I2cDevice _i2cDeviceOled;
         private readonly Ssd1306 _display;
         private readonly I2cDevice _i2cDeviceAdc;
         private readonly Ads1115 _adc;
-        // Таймер для фонового обновления
         private Timer _timer;
         private readonly object _displayLock = new object();
 
@@ -52,6 +58,9 @@ namespace SmartGreenhouse.Services
             _gpio.OpenPin(5, PinMode.Input);
             _gpio.OpenPin(6, PinMode.Input);
             _gpio.OpenPin(13, PinMode.Input);
+
+            _i2cDeviceBme = I2cDevice.Create(new I2cConnectionSettings(1, 0x76));
+            _bme280 = new Bme280(_i2cDeviceBme);
 
             // НОВОЕ: Настраиваем порты для реле насосов (GPIO 23, 24, 25)
             _gpio.OpenPin(17, PinMode.Output);
@@ -313,14 +322,28 @@ namespace SmartGreenhouse.Services
             RawSoil3 = ReadFilteredAdc(InputMultiplexer.AIN3);
 
             // УФ-датчик тоже прогоним через фильтр, ему стабилизация не повредит
-            short rawUv = ReadFilteredAdc(InputMultiplexer.AIN1);
+            UvLight = ReadFilteredAdc(InputMultiplexer.AIN1);
+            try
+            {
+                _bme280.SetPowerMode(Bmx280PowerMode.Forced); // Будим датчик для замера
+                Thread.Sleep(50); // Даем ему 50мс на подумать
 
+                _bme280.TryReadTemperature(out var tempValue);
+                AirTemp = Math.Round(tempValue.DegreesCelsius, 1); // Округляем до 1 знака (напр. 24.5)
+
+                _bme280.TryReadHumidity(out var humValue);
+                AirHum = Math.Round(humValue.Percent, 1);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка BME280: {ex.Message}");
+            }
             return new
             {
                 Soil1 = RawSoil1,
                 Soil2 = RawSoil2,
                 Soil3 = RawSoil3,
-                Uv = rawUv,
+                Uv = UvLight,
                 remote = _remoteStatus
             };
         }

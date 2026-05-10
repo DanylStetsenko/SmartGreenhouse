@@ -147,26 +147,37 @@
         </header>
 
         <main>
-            <!-- ДЕБАГ ПАНЕЛЬ -->
-            <div style="background: #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 2px dashed #94a3b8;">
-                <h3 style="margin-top: 0; color: #334155;">🛠</h3>
-
-                <p style="margin-bottom: 15px; color: #475569;">
-                    <strong>дані з сенсорів:</strong>
-                    <code id="rawSensorsText" style="background: #fff; padding: 4px 8px; border-radius: 4px;">Очікування...</code>
-                </p>
-
-                <button onclick="testWaterPump()" style="background: #3b82f6; color: white; padding: 10px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                    💦 Примусовий запуск насоса (Пін 17)
-                </button>
-            </div>
-            <!-- КОНЕЦ ДЕБАГ ПАНЕЛИ -->
             <!-- Контейнер, куда скрипт будет вставлять карточки -->
-            <div class="pots-grid" id="potsContainer">
-                <div class="status-msg">
-                    ⏳ Завантаження конфігурації з бази даних...
+            <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 28px; margin-bottom: 5px;">🌡️</div>
+                    <div style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Температура</div>
+                    <div id="airTempDisplay" style="font-size: 22px; font-weight: 700; color: var(--text-main); margin-top: 4px;">-- °C</div>
+                </div>
+
+                <div style="width: 1px; height: 50px; background: var(--border-color); display: block;"></div>
+
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 28px; margin-bottom: 5px;">🌫️</div>
+                    <div style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Вологість повітря</div>
+                    <div id="airHumDisplay" style="font-size: 22px; font-weight: 700; color: var(--text-main); margin-top: 4px;">-- %</div>
+                </div>
+
+                <div style="width: 1px; height: 50px; background: var(--border-color); display: block;"></div>
+
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 28px; margin-bottom: 5px;">☀️</div>
+                    <div style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Освітленість (УФ)</div>
+                    <div id="lightDisplay" style="font-size: 22px; font-weight: 700; color: var(--text-main); margin-top: 4px;">--</div>
                 </div>
             </div>
+
+            <div class="pots-grid" id="potsContainer">
+                <div class="pots-grid" id="potsContainer">
+                    <div class="status-msg">
+                        ⏳ Завантаження конфігурації з бази даних...
+                    </div>
+                </div>
         </main>
     </div>
     <!-- Модальне вікно для додавання горщика -->
@@ -299,6 +310,7 @@
         }
 
         // 4. ДЕБАГ + ОБНОВЛЕНИЕ: Опрос датчиков
+        // 4. ДЕБАГ + ОБНОВЛЕНИЕ: Опрос датчиков
         async function fetchSensors() {
             try {
                 const response = await fetch('/api/sensors');
@@ -306,14 +318,27 @@
 
                 const data = await response.json();
 
-                // Выводим сырой JSON в нашу новую панель
+                // Выводим сырой JSON в дебаг-панель (чтобы видеть, что реально шлет сервер)
                 const rawPanel = document.getElementById('rawSensorsText');
                 if (rawPanel) {
                     rawPanel.innerText = JSON.stringify(data);
                 }
 
-                // Заодно обновляем красивые карточки, если они загрузились
-                for (const [id, value] of Object.entries(data)) {
+                // 1. Оновлення панелі Глобального Клімату
+                // (Поки бекенд це не надсилає, там будуть стояти прочерки)
+                if (data.airTemp !== undefined) document.getElementById('airTempDisplay').innerText = data.airTemp + ' °C';
+                if (data.airHum !== undefined) document.getElementById('airHumDisplay').innerText = data.airHum + ' %';
+                if (data.uvLight !== undefined) document.getElementById('lightDisplay').innerText = data.uvLight;
+
+                // 2. Оновлення карток горщиків (Вологість ґрунту)
+                // Оскільки тепер сервер буде надсилати горщики у вкладеному об'єкті data.pots,
+                // перевіряємо, чи існує він. Якщо старий формат - працюємо як раніше.
+                const potsData = data.pots ? data.pots : data;
+
+                for (const [id, value] of Object.entries(potsData)) {
+                    // Якщо це системні параметри (наприклад, remote статус), ігноруємо їх для карток
+                    if (id === 'remote' || id === 'airTemp' || id === 'airHum' || id === 'uvLight') continue;
+
                     const el = document.getElementById(`soil${id}Value`);
                     if (el) el.innerText = value;
                 }

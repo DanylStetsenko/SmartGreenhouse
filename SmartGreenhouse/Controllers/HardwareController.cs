@@ -44,22 +44,32 @@ namespace SmartGreenhouse.Controllers
         [HttpGet("/api/sensors")]
         public IActionResult GetSensors()
         {
-            // Пнули сервис, чтобы он обновил цифры с железа
+            // 1. Опрашиваем железо
             _hardwareService.GetCurrentSensorValues();
 
+            // 2. Достаем актуальные горшки из базы, чтобы знать их настоящие ID (например, 1, 4, 5)
             using var db = new GreenhouseContext();
-            var pots = db.ActivePots.ToList();
-            var sensorData = new Dictionary<int, int>();
+            var activePots = db.ActivePots.ToList();
+            var potsSensorData = new Dictionary<int, int>();
 
-            // Собираем показания датчиков, ориентируясь на то, какой насос (пин) привязан к горшку
-            foreach (var pot in pots)
+            // 3. Умно сопоставляем показания АЦП с ID горшков, ориентируясь на их пин насоса
+            foreach (var pot in activePots)
             {
-                if (pot.RelayPin == 17) sensorData.Add(pot.Id, _hardwareService.RawSoil1);
-                else if (pot.RelayPin == 27) sensorData.Add(pot.Id, _hardwareService.RawSoil2);
-                else if (pot.RelayPin == 22) sensorData.Add(pot.Id, _hardwareService.RawSoil3);
+                if (pot.RelayPin == 17) potsSensorData.Add(pot.Id, _hardwareService.RawSoil1);
+                else if (pot.RelayPin == 27) potsSensorData.Add(pot.Id, _hardwareService.RawSoil2);
+                else if (pot.RelayPin == 22) potsSensorData.Add(pot.Id, _hardwareService.RawSoil3);
             }
 
-            return Ok(sensorData);
+            // 4. Упаковываем всё в красивый JSON для сайта
+            var responseData = new
+            {
+                airTemp = _hardwareService.AirTemp,
+                airHum = _hardwareService.AirHum,
+                uvLight = _hardwareService.UvLight,
+                pots = potsSensorData // <-- Теперь тут динамический словарь с правильными ID!
+            };
+
+            return Ok(responseData);
         }
         [HttpGet("/api/pots")]
         public IActionResult GetActivePots()
