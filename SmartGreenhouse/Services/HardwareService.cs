@@ -174,6 +174,38 @@ namespace SmartGreenhouse.Services
 
             return percent;
         }
+        // Публічний метод для контролера, щоб він міг забрати готові відсотки
+        public int GetMoisturePercentForPin(int pin)
+        {
+            short rawVal = 0;
+            int dry = 15000;
+            int wet = 0;
+
+            if (pin == 17)
+            {
+                rawVal = RawSoil1;
+                dry = _calibrations[17].Dry;
+                wet = _calibrations[17].Wet;
+            }
+            else if (pin == 27)
+            {
+                rawVal = RawSoil2;
+                dry = _calibrations[27].Dry;
+                wet = _calibrations[27].Wet;
+            }
+            else if (pin == 22)
+            {
+                rawVal = RawSoil3;
+                dry = _calibrations[22].Dry;
+                wet = _calibrations[22].Wet;
+            }
+            else
+            {
+                return 0;
+            }
+
+            return MapToPercent(rawVal, dry, wet);
+        }
 
         private async Task PulsePump(int pin)
         {
@@ -370,7 +402,7 @@ namespace SmartGreenhouse.Services
                 _gpio.Write(pot.RelayPin, PinValue.High);
 
                 // Ждем столько секунд, сколько прописано в дозе полива для этого растения
-                await Task.Delay(1000);
+                await Task.Delay(4000);
             }
             catch (Exception ex)
             {

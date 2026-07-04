@@ -1,0 +1,232 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climate Control - Smart Greenhouse</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --accent-color: #10b981;
+            --border-color: #e5e7eb;
+            --blue-accent: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        header {
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            text-decoration: none;
+            font-size: 24px;
+            color: var(--text-main);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            background: #f9fafb;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+            .status-row:last-child {
+                border-bottom: none;
+            }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-off {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .req-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .req-item {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .req-val {
+            font-weight: 700;
+            font-size: 16px;
+            display: block;
+            color: var(--blue-accent);
+        }
+
+        .req-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+
+            .save-btn:hover {
+                background: #059669;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <a href="index.html" class="back-link">←</a>
+            <h1>Налаштування клімату</h1>
+        </header>
+
+        <div class="card">
+            <div class="section-title">🎯 Пріоритетна рослина (Бос клімату)</div>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+                Оберіть рослину, за параметрами якої буде працювати лампа та зволожувач.
+            </p>
+            <select id="priorityPlantSelect" onchange="updateRequirementsPreview()">
+                <option value="">Завантаження списку...</option>
+            </select>
+
+            <div class="req-grid" id="requirementsPreview">
+                <div class="req-item">
+                    <span class="req-label">Вологість повітря</span>
+                    <span class="req-val">--%</span>
+                </div>
+                <div class="req-item">
+                    <span class="req-label">Світловий день</span>
+                    <span class="req-val">-- год</span>
+                </div>
+            </div>
+
+            <button class="save-btn" onclick="saveClimateSettings()">Зберегти налаштування</button>
+        </div>
+
+        <div class="card">
+            <div class="section-title">🔌 Поточний статус обладнання</div>
+
+            <div class="status-row">
+                <div>
+                    <span style="font-size: 15px; font-weight: 500;">УФ-Лампа</span>
+                    <div style="font-size: 11px; color: var(--text-muted);">GPIO 23</div>
+                </div>
+                <span class="badge badge-off" id="lampBadge">Вимкнено</span>
+            </div>
+
+            <div class="status-row">
+                <div>
+                    <span style="font-size: 15px; font-weight: 500;">Зволожувач</span>
+                    <div style="font-size: 11px; color: var(--text-muted);">GPIO 24</div>
+                </div>
+                <span class="badge badge-active" id="humBadge">Працює</span>
+            </div>
+        </div>
+
+        <p style="text-align: center; font-size: 12px; color: var(--text-muted);">
+            Система автоматично вимкне прилади під час "сну" обраної рослини.
+        </p>
+    </div>
+
+    <script>
+        // Сюди ми пізніше додамо логіку:
+        // 1. Завантаження всіх рослин з /api/plants
+        // 2. Завантаження поточного вибору з SystemSettings
+        // 3. Збереження нового вибору
+
+        function updateRequirementsPreview() {
+            // Тут ми будемо показувати параметри обраної рослини (MinAirHum, SleepTime тощо)
+        }
+
+        async function saveClimateSettings() {
+            // Відправка ID обраної рослини на бекенд
+            alert("Налаштування збережено в базу!");
+        }
+    </script>
+</body>
+</html>

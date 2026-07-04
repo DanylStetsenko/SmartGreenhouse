@@ -11,6 +11,7 @@ namespace SmartGreenhouse.Models
         public string PlantName { get; set; }
         public int RelayPin { get; set; }
         public int SensorChannel { get; set; }
+        public int WateringDose { get; set; } = 3000;
 
         public DateTime PlantedDate { get; set; }
     }

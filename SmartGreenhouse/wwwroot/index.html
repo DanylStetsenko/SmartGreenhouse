@@ -150,9 +150,14 @@
                 </div>
             </div>
 
-            <a href="debug.html" style="text-decoration: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px; transition: 0.2s; background: white;">
-                🛠 ТЕСТУВАННЯ
-            </a>
+            <div style="display: flex; gap: 10px;">
+                <a href="climate.html" style="text-decoration: none; color: var(--text-main); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--accent-color); border-radius: 8px; transition: 0.2s; background: #f0fdf4;">
+                    ☁️ КЛІМАТ
+                </a>
+                <a href="debug.html" style="text-decoration: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px; transition: 0.2s; background: white;">
+                    🛠 ТЕСТУВАННЯ
+                </a>
+            </div>
         </header>
         <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 15px;">
@@ -401,14 +406,17 @@
                 // 2. Оновлення карток горщиків (Вологість ґрунту)
                 // Оскільки тепер сервер буде надсилати горщики у вкладеному об'єкті data.pots,
                 // перевіряємо, чи існує він. Якщо старий формат - працюємо як раніше.
+                // 2. Оновлення карток горщиків (Вологість ґрунту)
                 const potsData = data.pots ? data.pots : data;
 
                 for (const [id, value] of Object.entries(potsData)) {
-                    // Якщо це системні параметри (наприклад, remote статус), ігноруємо їх для карток
                     if (id === 'remote' || id === 'airTemp' || id === 'airHum' || id === 'uvLight') continue;
 
                     const el = document.getElementById(`soil${id}Value`);
-                    if (el) el.innerText = value;
+                    if (el) {
+                        // Просто додаємо пробіл і знак відсотка до цифри
+                        el.innerText = value + ' %';
+                    }
                 }
             } catch (error) {
                 console.error("Не вдалося оновити сенсори", error);

@@ -59,11 +59,11 @@ namespace SmartGreenhouse.Controllers
             var potsSensorData = new Dictionary<int, int>();
 
             // 3. Умно сопоставляем показания АЦП с ID горшков, ориентируясь на их пин насоса
+            // 3. Умно сопоставляем показания АЦП с ID горшков
             foreach (var pot in activePots)
             {
-                if (pot.RelayPin == 17) potsSensorData.Add(pot.Id, _hardwareService.RawSoil1);
-                else if (pot.RelayPin == 27) potsSensorData.Add(pot.Id, _hardwareService.RawSoil2);
-                else if (pot.RelayPin == 22) potsSensorData.Add(pot.Id, _hardwareService.RawSoil3);
+                // Тепер ми відправляємо на фронтенд не сирі дані, а одразу готові відсотки!
+                potsSensorData.Add(pot.Id, _hardwareService.GetMoisturePercentForPin(pot.RelayPin));
             }
 
             // 4. Упаковываем всё в красивый JSON для сайта
