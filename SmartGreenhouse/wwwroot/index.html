@@ -88,6 +88,7 @@
         .pot-stat {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             margin-bottom: 12px;
             font-size: 14px;
         }
@@ -137,6 +138,38 @@
             color: #ef4444;
             font-weight: 500;
         }
+
+        .dose-input {
+            width: 70px;
+            padding: 6px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+            .dose-input:focus {
+                border-color: var(--accent-color);
+            }
+
+        .btn-save-dose {
+            background-color: var(--text-main);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+            .btn-save-dose:hover {
+                opacity: 0.9;
+            }
     </style>
 </head>
 <body>
@@ -150,14 +183,9 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px;">
-                <a href="climate.html" style="text-decoration: none; color: var(--text-main); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--accent-color); border-radius: 8px; transition: 0.2s; background: #f0fdf4;">
-                    ☁️ КЛІМАТ
-                </a>
-                <a href="debug.html" style="text-decoration: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px; transition: 0.2s; background: white;">
-                    🛠 ТЕСТУВАННЯ
-                </a>
-            </div>
+            <a href="debug.html" style="text-decoration: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px; transition: 0.2s; background: white;">
+                🛠 ТЕСТУВАННЯ
+            </a>
         </header>
         <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 15px;">
@@ -173,7 +201,6 @@
             </button>
         </div>
         <main>
-            <!-- Контейнер, куда скрипт будет вставлять карточки -->
             <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div style="text-align: center; flex: 1;">
                     <div style="font-size: 28px; margin-bottom: 5px;">🌡️</div>
@@ -199,21 +226,19 @@
             </div>
 
             <div class="pots-grid" id="potsContainer">
-                <div class="pots-grid" id="potsContainer">
-                    <div class="status-msg">
-                        ⏳ Завантаження конфігурації з бази даних...
-                    </div>
+                <div class="status-msg">
+                    ⏳ Завантаження конфігурації з бази даних...
                 </div>
+            </div>
         </main>
     </div>
-    <!-- Модальне вікно для додавання горщика -->
+
     <!-- Модальне вікно для додавання горщика -->
     <div id="modalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 50;">
         <div style="background: white; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0; color: #1f2937;">➕ Новий горщик</h3>
 
             <p style="font-size: 14px; color: #6b7280; margin-bottom: 5px; font-weight: 500;">Оберіть рослину з бази:</p>
-            <!-- Збільшили margin-bottom, щоб було красиво -->
             <select id="newPlantSelect" style="width: 100%; padding: 10px; margin-bottom: 25px; border-radius: 6px; border: 1px solid #d1d5db; outline: none;"></select>
 
             <div style="display: flex; gap: 10px;">
@@ -222,8 +247,8 @@
             </div>
         </div>
     </div>
+
     <script>
-        // 1. Загрузка карточек из базы
         async function loadPotsFromDatabase() {
             try {
                 const response = await fetch('/api/pots');
@@ -233,61 +258,66 @@
                 const container = document.getElementById('potsContainer');
                 container.innerHTML = '';
 
-                // Если база пустая, выводим сообщение, но НЕ делаем return!
                 if (pots.length === 0) {
                     container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 20px; color: #6b7280; font-size: 16px;">У базі даних поки немає активних горщиків. Додайте перший! 👇</div>';
                 } else {
-                    // Если горшки есть, рисуем их карточки
-                    // Если горшки есть, рисуем их карточки
                     pots.forEach((pot, index) => {
-                        const visualNumber = index + 1; // Рахуємо по порядку (1, 2, 3...)
+                        const visualNumber = index + 1;
 
                         const cardHtml = `
-                        <div class="pot-card" style="position: relative;">
-                            <button onclick="deletePot(${pot.id})" title="Видалити горщик" style="position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #ef4444; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
-                                ✖
-                            </button>
-                            <div class="plant-name">🌱 ${pot.plantName}</div>
-                            <div class="pot-stat">
-                                <span class="stat-label">Номер горщика:</span>
-                                <span class="stat-value">#${visualNumber}</span>
+                            <div class="pot-card" style="position: relative;">
+                                <button onclick="deletePot(${pot.id})" title="Видалити горщик" style="position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #ef4444; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                                    ✖
+                                </button>
+                                <div class="plant-name">🌱 ${pot.plantName}</div>
+                                <div class="pot-stat">
+                                    <span class="stat-label">Номер горщика:</span>
+                                    <span class="stat-value">#${visualNumber}</span>
+                                </div>
+                                <div class="pot-stat">
+                                    <span class="stat-label">Апаратний слот:</span>
+                                    <span class="stat-value">GPIO ${pot.relayPin}</span>
+                                </div>
+                                <div class="pot-stat">
+                                    <span class="stat-label">Вологість ґрунту:</span>
+                                    <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
+                                </div>
+
+                                <!-- Новий блок для налаштування дози поливу -->
+                                <div class="pot-stat" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+                                    <span class="stat-label">Доза поливу (мс):</span>
+                                    <div style="display: flex; gap: 6px;">
+                                        <input type="number" id="doseInput${pot.id}" class="dose-input" value="${pot.wateringDoseMs}" min="100" max="60000" step="100">
+                                        <button class="btn-save-dose" id="btnSaveDose${pot.id}" onclick="savePotDose(${pot.id})">OK</button>
+                                    </div>
+                                </div>
+
+                                <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
+                                    💦 Полити (Авто-доза)
+                                </button>
                             </div>
-                            <div class="pot-stat">
-                                <span class="stat-label">Апаратний слот:</span>
-                                <span class="stat-value">GPIO ${pot.relayPin}</span>
-                            </div>
-                            <div class="pot-stat">
-                                <span class="stat-label">Вологість ґрунту:</span>
-                                <span class="stat-value" id="soil${pot.id}Value">Очікування...</span>
-                            </div>
-                            <button class="btn-water" id="btnWater${pot.id}" onclick="waterPot(${pot.id})">
-                                💦 Полити (Авто-доза)
-                            </button>
-                        </div>
-                    `;
+                        `;
                         container.insertAdjacentHTML('beforeend', cardHtml);
                     });
                 }
 
-                // Малюємо кнопку "Додати горщик" В БУДЬ-ЯКОМУ ВИПАДКУ в самому кінці
                 const addCardHtml = `
-                <div class="pot-card" onclick="openModal()" style="display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 220px; border: 2px dashed #10b981; background: #f0fdf4; box-shadow: none;">
-                    <div style="font-size: 48px; color: #10b981; line-height: 1;">+</div>
-                    <div style="color: #10b981; font-weight: 600; margin-top: 10px;">Додати горщик</div>
-                </div>
-            `;
+                    <div class="pot-card" onclick="openModal()" style="display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 220px; border: 2px dashed #10b981; background: #f0fdf4; box-shadow: none;">
+                        <div style="font-size: 48px; color: #10b981; line-height: 1;">+</div>
+                        <div style="color: #10b981; font-weight: 600; margin-top: 10px;">Додати горщик</div>
+                    </div>
+                `;
                 container.insertAdjacentHTML('beforeend', addCardHtml);
 
             } catch (error) {
                 document.getElementById('potsContainer').innerHTML = `
-                <div class="status-msg error-text" style="grid-column: 1 / -1; text-align: center;">❌ Помилка з'єднання з базою даних.</div>
-            `;
+                    <div class="status-msg error-text" style="grid-column: 1 / -1; text-align: center;">❌ Помилка з'єднання з базою даних.</div>
+                `;
             }
         }
+
         function updateClock() {
             const now = new Date();
-
-            // Налаштовуємо формат: День тижня, Число Місяць, Години:Хвилини:Секунди
             const options = {
                 weekday: 'long',
                 day: 'numeric',
@@ -296,22 +326,17 @@
                 minute: '2-digit',
                 second: '2-digit'
             };
-
             let formatted = now.toLocaleString('uk-UA', options);
-
-            // Робимо першу літеру дня тижня великою
             formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-
             const clockEl = document.getElementById('clockDisplay');
             if (clockEl) {
                 clockEl.innerText = formatted;
             }
         }
 
-        // Запускаємо лічильник
         setInterval(updateClock, 1000);
-        updateClock(); // Викликаємо одразу, щоб не чекати першу секунду
-        // 2. Полив через базу (по ID)
+        updateClock();
+
         async function waterPot(potId) {
             const btn = document.getElementById(`btnWater${potId}`);
             const originalText = btn.innerHTML;
@@ -330,8 +355,8 @@
                 btn.disabled = false;
             }, 2000);
         }
+
         async function deletePot(potId) {
-            // Спрашиваем подтверждение, чтобы юзер не удалил горшок случайным кликом
             if (!confirm('Ви впевнені, що хочете видалити цей горщик?')) {
                 return;
             }
@@ -340,7 +365,6 @@
                 const response = await fetch(`/api/pots/${potId}`, { method: 'DELETE' });
 
                 if (response.ok) {
-                    // Если сервер успешно удалил, просто перезагружаем список горшков
                     loadPotsFromDatabase();
                 } else {
                     alert('❌ Помилка при видаленні на сервері');
@@ -350,7 +374,51 @@
             }
         }
 
-        // 3. ДЕБАГ: Принудительный полив в обход базы
+        // --- НОВА ФУНКЦІЯ: Збереження дози поливу ---
+        async function savePotDose(potId) {
+            const input = document.getElementById(`doseInput${potId}`);
+            const btn = document.getElementById(`btnSaveDose${potId}`);
+            const newDoseMs = parseInt(input.value);
+
+            if (isNaN(newDoseMs) || newDoseMs < 100 || newDoseMs > 60000) {
+                alert("Введіть коректне значення від 100 до 60000 мс");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/pots/${potId}/dose`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ doseMs: newDoseMs })
+                });
+
+                if (response.ok) {
+                    btn.innerHTML = '✅';
+                    btn.style.backgroundColor = '#10b981'; // Зелений при успіху
+                } else {
+                    const err = await response.text();
+                    alert("Помилка сервера: " + err);
+                    btn.innerHTML = '❌';
+                    btn.style.backgroundColor = '#ef4444';
+                }
+            } catch (error) {
+                alert("Помилка з'єднання");
+                btn.innerHTML = '❌';
+                btn.style.backgroundColor = '#ef4444';
+            }
+
+            // Повертаємо кнопку до початкового стану через 2 секунди
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = 'var(--text-main)';
+                btn.disabled = false;
+            }, 2000);
+        }
+
         async function testWaterPump() {
             try {
                 const response = await fetch('/api/water/test', { method: 'POST' });
@@ -364,15 +432,13 @@
             }
         }
 
-        // 4. ДЕБАГ + ОБНОВЛЕНИЕ: Опрос датчиков
-        // 4. ДЕБАГ + ОБНОВЛЕНИЕ: Опрос датчиков
         async function fetchSensors() {
             try {
                 const response = await fetch('/api/sensors');
                 if (!response.ok) return;
 
                 const data = await response.json();
-                // Оновлення Головного Рубильника
+
                 if (data.isSystemActive !== undefined) {
                     isSystemActive = data.isSystemActive;
                     const btn = document.getElementById('btnToggleSystem');
@@ -382,52 +448,42 @@
                         btn.innerHTML = '🛑 Вимкнути систему';
                         btn.style.background = '#ef4444';
                         badge.innerHTML = '✅ АКТИВНА';
-                        badge.style.color = '#10b981'; // Зелений
+                        badge.style.color = '#10b981';
                     } else {
                         btn.innerHTML = '▶️ Увімкнути систему';
                         btn.style.background = '#10b981';
                         badge.innerHTML = '⏸ НА ПАУЗІ';
-                        badge.style.color = '#ef4444'; // Червоний
+                        badge.style.color = '#ef4444';
                     }
                 }
 
-                // Выводим сырой JSON в дебаг-панель (чтобы видеть, что реально шлет сервер)
                 const rawPanel = document.getElementById('rawSensorsText');
                 if (rawPanel) {
                     rawPanel.innerText = JSON.stringify(data);
                 }
 
-                // 1. Оновлення панелі Глобального Клімату
-                // (Поки бекенд це не надсилає, там будуть стояти прочерки)
                 if (data.airTemp !== undefined) document.getElementById('airTempDisplay').innerText = data.airTemp + ' °C';
                 if (data.airHum !== undefined) document.getElementById('airHumDisplay').innerText = data.airHum + ' %';
                 if (data.uvLight !== undefined) document.getElementById('lightDisplay').innerText = data.uvLight;
 
-                // 2. Оновлення карток горщиків (Вологість ґрунту)
-                // Оскільки тепер сервер буде надсилати горщики у вкладеному об'єкті data.pots,
-                // перевіряємо, чи існує він. Якщо старий формат - працюємо як раніше.
-                // 2. Оновлення карток горщиків (Вологість ґрунту)
                 const potsData = data.pots ? data.pots : data;
 
                 for (const [id, value] of Object.entries(potsData)) {
                     if (id === 'remote' || id === 'airTemp' || id === 'airHum' || id === 'uvLight') continue;
 
                     const el = document.getElementById(`soil${id}Value`);
-                    if (el) {
-                        // Просто додаємо пробіл і знак відсотка до цифри
-                        el.innerText = value + ' %';
-                    }
+                    if (el) el.innerText = value + ' %';
                 }
             } catch (error) {
                 console.error("Не вдалося оновити сенсори", error);
             }
         }
-        let isSystemActive = true; // Зберігаємо поточний стан на клієнті
+
+        let isSystemActive = true;
 
         async function toggleSystem() {
-            const newState = !isSystemActive; // Перемикаємо на протилежний
+            const newState = !isSystemActive;
 
-            // Якщо вимикаємо, запитуємо підтвердження для безпеки
             if (!newState && !confirm("Ви впевнені, що хочете вимкнути всю автоматику? Рослини не будуть поливатися!")) {
                 return;
             }
@@ -438,26 +494,20 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ isActive: newState })
                 });
-                // Ми не змінюємо UI тут вручну, бо fetchSensors оновиться сам через секунду
             } catch (e) {
                 alert("Помилка з'єднання");
             }
         }
+
         async function openModal() {
-            // 1. Показуємо вікно
             document.getElementById('modalOverlay').style.display = 'flex';
-
-            // СТРОЧКУ З ОЧИЩЕННЯМ ПІНА МИ ВИДАЛИЛИ ЗВІДСИ!
-
             try {
-                // 2. Завантажуємо список рослин з бекенду
                 const response = await fetch('/api/plants');
                 const plants = await response.json();
 
                 const select = document.getElementById('newPlantSelect');
-                select.innerHTML = ''; // Очищаємо список
+                select.innerHTML = '';
 
-                // 3. Заповнюємо випадаючий список
                 plants.forEach(p => {
                     select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
                 });
@@ -477,14 +527,13 @@
                 const response = await fetch('/api/pots', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plantProfileId: parseInt(plantId) }) // Отправляем только ID!
+                    body: JSON.stringify({ plantProfileId: parseInt(plantId) })
                 });
 
                 if (response.ok) {
                     closeModal();
                     loadPotsFromDatabase();
                 } else {
-                    // Читаем текст ошибки с сервера (например, про отсутствие слотов)
                     const errorText = await response.text();
                     alert("Помилка: " + errorText);
                 }
@@ -492,12 +541,9 @@
                 alert("Помилка мережі");
             }
         }
-        // Запускаем загрузку карточек при старте
-        window.onload = loadPotsFromDatabase;
 
-        // Запускаем опрос датчиков каждые 2 секунды
+        window.onload = loadPotsFromDatabase;
         setInterval(fetchSensors, 2000);
     </script>
-
 </body>
 </html>
